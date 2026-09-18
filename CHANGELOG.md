@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 (2026-09-18)
+
+- Fixed a Lua error when hovering **Show ranges** in the gear menu.
+
 ## 1.0.0 (2026-09-18)
 
 First release.

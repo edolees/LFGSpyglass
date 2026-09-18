@@ -3,7 +3,7 @@
 -- Rule: reuse Blizzard GlobalStrings (TANK, HEALER, DAMAGER, SIGN_UP, RESET, class names, ...)
 -- wherever one exists; only add keys for text Blizzard does not already provide.
 -- Keys are the English text itself (value `true`), so missing translations fall back to enUS.
-local L = LibStub("AceLocale-3.0"):NewLocale("LFGSpyglass", "enUS", true)
+local L = LibStub("AceLocale-3.0"):NewLocale((...), "enUS", true) -- the add-on folder name (also the dev copy)
 if not L then return end
 
 
@@ -81,21 +81,21 @@ L["Filter off"] = true
 L["Leader rating (high to low)"] = true
 L["Newest listings first"] = true
 L["Most members"] = true
+L["Leader progress (high to low)"] = true
 L["Show leader rating"] = true
-L["Show region"] = true
 L["Show the group leader's Mythic+ rating on each group."] = true
+L["Show region"] = true
 L["Show the group leader's region (flag and tag, for example East or DE) on each group."] = true
 L["Show spec role"] = true
-L["Show who's leader"] = true
 L["Show each member's spec icon with a role badge instead of Blizzard's class icons. Off: Blizzard's default icons."] = true
+L["Show who's leader"] = true
 L["Show a crown on the group leader's icon."] = true
+L["Show leader progress"] = true
+L["Show the raid leader's progress in that raid (and their main's, if better) from Raider.IO. Needs Raider.IO."] = true
 L["Show dungeon abbreviations"] = true
 L["Show short dungeon names (for example KR or RLP) on the dungeon buttons instead of the names."] = true
 L["Show ranges"] = true
-L["Show the Ranges section (Dungeons: leader rating; Raids: bosses defeated, members, most tanks and healers). Off: the section is hidden and those ranges don't filter; your values come back when you turn it on again."] = true
-L["Show leader progress"] = true
-L["Show the raid leader's progress in that raid (and their main's, if better) from Raider.IO. Needs Raider.IO."] = true
-L["Leader progress (high to low)"] = true
+L["Show the Ranges section (Dungeons: leader rating; Raids: members, most tanks and healers). Off: the section is hidden and those ranges don't filter; your values come back when you turn it on again."] = true
 L["Normal"] = true
 L["Heroic"] = true
 L["Mythic"] = true
