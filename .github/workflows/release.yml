@@ -1,12 +1,12 @@
 # Builds the add-on zip and uploads it to CurseForge (and a GitHub release) when a version tag
-# such as v1.2.0 is pushed. Needs the CF_API_KEY repository secret and ## X-Curse-Project-ID in
+# such as 1.2.0 is pushed. Needs the CF_API_KEY repository secret and ## X-Curse-Project-ID in
 # the TOC. Packaging rules are in .pkgmeta. Actions are pinned to exact commits; update them on purpose.
 name: Release
 
 on:
   push:
     tags:
-      - "v*"
+      - "[0-9]*" # version tags without a "v" (1.2.0): the tag is the in-game version
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
       CF_API_KEY: ${{ secrets.CF_API_KEY }}
       GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0 (pinned)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (pinned)
         with:
           fetch-depth: 0
       - uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1 (pinned: gets CF_API_KEY)
