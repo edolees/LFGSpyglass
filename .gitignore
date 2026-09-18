@@ -1,0 +1,16 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local tooling output
+*.log
+luacov.*
+/.release/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Python test tooling
+__pycache__/

@@ -1,0 +1,42 @@
+## Interface: 120100
+## Title: LFG Spyglass
+## Notes: Filter and sort the Premade Group Finder
+## Author: edolees
+## Version: @project-version@
+## SavedVariables: LFGSpyglassDB
+## Category: Group Finder
+
+embeds.xml
+
+Locales\enUS.lua
+
+# Core
+Core\Init.lua
+Core\FrameMap.lua
+Core\SafeRead.lua
+Core\Restrictions.lua
+Core\CombatQueue.lua
+Core\Settings.lua
+
+# Data
+Data\SeasonRaids.lua
+Data\Categories.lua
+Data\LeaderProgress.lua
+Data\ClassUtility.lua
+Data\DungeonAbbreviations.lua
+Data\RealmData.lua
+Data\Regions.lua
+Data\Specs.lua
+
+# Filter
+Filter\Match.lua
+Filter\Sort.lua
+Filter\Snapshot.lua
+Filter\Engine.lua
+
+# UI
+UI\ResultList.lua
+UI\FilterPanel.lua
+UI\ToggleButton.lua
+UI\SignUpDialog.lua
+UI\ProfileDock.lua

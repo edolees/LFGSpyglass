@@ -1,0 +1,12 @@
+package-as: LFGSpyglass
+
+ignore:
+  - specs
+  - .specify
+  - .claude
+  - tests
+  - tools
+  - CLAUDE.md
+  - .busted
+  - .gitattributes
+  - .gitignore
