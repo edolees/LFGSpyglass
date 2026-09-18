@@ -5,7 +5,7 @@
 -- time zone are kept, keyed by API realm name). It is not the original library.
 --
 -- LibRealmInfo: Copyright (C) 2014-2019 Phanx <addons@phanx.net>
--- https://github.com/phanx-wow/LibRealmInfo
+-- https://github.com/phanx-wow/LibRealmInfo (continued at https://github.com/janekjl/LibRealmInfo)
 --
 -- Copyright (C) 2014-2019 Phanx <addons@phanx.net>
 --

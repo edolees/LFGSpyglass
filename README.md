@@ -78,8 +78,9 @@ It follows Blizzard's UI Add-On Development Policy.
   contributors, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   Resized and converted to TGA.
 - Realm region data: derived (modified and reduced) from
-  [LibRealmInfo](https://github.com/phanx-wow/LibRealmInfo), © 2014-2019 Phanx, zlib license.
-  See the license notice in `Data/RealmData.lua`.
+  [LibRealmInfo](https://github.com/phanx-wow/LibRealmInfo), © 2014-2019 Phanx, zlib license
+  (continued by [janekjl](https://github.com/janekjl/LibRealmInfo)). See the license notice in
+  `Data/RealmData.lua`.
 - Libraries: [Ace3](https://github.com/WoWUIDev/Ace3) (see `Libs/Ace3-LICENSE.txt`).
 
 ## License

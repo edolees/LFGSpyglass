@@ -5,6 +5,7 @@
 ## Version: @project-version@
 ## SavedVariables: LFGSpyglassDB
 ## Category: Group Finder
+## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 
 embeds.xml
 
