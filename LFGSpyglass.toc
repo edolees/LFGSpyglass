@@ -6,6 +6,7 @@
 ## SavedVariables: LFGSpyglassDB
 ## Category: Group Finder
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
+## X-Curse-Project-ID: 1700595
 
 embeds.xml
 
