@@ -241,22 +241,14 @@ function Categories.GetRaidForMap(mapID)
 	return nil
 end
 
--- The raids whose bosses the panel lists: the selected raids, else every raid of the season. A
--- season is one tier, so the merged list stays short and the bosses of a raid nobody selected are
--- still there to tick.
-function Categories.GetBossListRaids(settings)
+-- The raids whose bosses the panel lists: every raid of the season. A season is one tier, so the
+-- merged list stays short.
+function Categories.GetBossListRaids()
 	local raids = Categories.GetSeasonGroups(Categories.RAIDS)
-	local selected = {}
-	for _, group in ipairs(raids) do
-		if settings and settings.activityGroups and settings.activityGroups[group.groupID] then
-			selected[#selected + 1] = group
-		end
-	end
-	local shown = #selected > 0 and selected or raids
-	for _, raid in ipairs(shown) do
+	for _, raid in ipairs(raids) do
 		EnsureBosses(raid)
 	end
-	return shown
+	return raids
 end
 
 function Categories.GetSeasonDungeons()

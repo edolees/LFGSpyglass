@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0 (2026-09-18)
+
+### Raids
+- The raid buttons are gone: the boss list now shows every boss of this season's raids, and
+  **Difficulty** sits at the top.
+- Boss checkboxes: **left-click** (tick) keeps only groups that haven't killed that boss yet,
+  **right-click** (new, red cross) only groups that already killed it, for example to find a group
+  for the last boss. Click again to clear; **None** clears all marks.
+- **Fresh run** clears the boss marks, and marking a boss turns Fresh run off.
+
+### Dungeons
+- **Right-click** a dungeon to hide its groups (red cross); left-click still selects.
+- Dungeon buttons always show the short names (KR, RLP, ...), with the full name in the tooltip;
+  the option for it is gone.
+- The header always shows how many dungeons are selected (0/8 to 8/8).
+
+### Everywhere
+- **Sort** is now a sort icon next to the gear, which frees a row in the panel.
+
 ## 1.0.1 (2026-09-18)
 
 - Fixed a Lua error when hovering **Show ranges** in the gear menu.

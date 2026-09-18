@@ -26,15 +26,28 @@ local function EffectiveSettings(settings, categoryID)
 	for k, v in pairs(settings) do
 		effective[k] = v
 	end
-	effective.activityGroups = ns.Match.EffectiveGroups(settings.activityGroups, seasonSet)
-	if settings.aliveBosses then
-		-- Only the ticks of the raids whose bosses the panel shows filter (no invisible filter); ticks
-		-- for another raid are kept for when that raid is shown again.
-		effective.aliveBosses = {}
-		for _, raid in ipairs(ns.Categories.GetBossListRaids(settings)) do
-			for bossID in pairs(settings.aliveBosses) do
-				if raid.bossIDs and raid.bossIDs[bossID] then
-					effective.aliveBosses[bossID] = true
+	-- Raids have no raid selection (the boss list covers the season's raids): never a raid filter.
+	effective.activityGroups = categoryID == ns.Categories.RAIDS and {}
+		or ns.Match.EffectiveGroups(settings.activityGroups, seasonSet)
+	-- Excluded dungeons: only those still in the season filter (no invisible filter).
+	if settings.excludedGroups then
+		effective.excludedGroups = {}
+		for groupID in pairs(settings.excludedGroups) do
+			if seasonSet == nil or seasonSet[groupID] then
+				effective.excludedGroups[groupID] = true
+			end
+		end
+	end
+	-- Boss marks: only the marks of the bosses the panel shows filter (no invisible filter); marks
+	-- left from an earlier season's raids are ignored.
+	for _, key in ipairs({ "aliveBosses", "deadBosses" }) do
+		if settings[key] then
+			effective[key] = {}
+			for _, raid in ipairs(ns.Categories.GetBossListRaids()) do
+				for bossID in pairs(settings[key]) do
+					if raid.bossIDs and raid.bossIDs[bossID] then
+						effective[key][bossID] = true
+					end
 				end
 			end
 		end

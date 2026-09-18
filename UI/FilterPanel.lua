@@ -1,6 +1,6 @@
 -- Filter panel docked next to the Group Finder.
--- Layout follows the user's "LFG Filter" design (Dungeons, Ranges, Group needs, I sign up as, Sort,
--- footer count), built only from Blizzard templates and fonts so it looks stock.
+-- Layout follows the user's "LFG Filter" design (Dungeons, Ranges, Group needs, I sign up as,
+-- footer count; Sort is the icon next to the gear), built only from Blizzard templates and fonts so it looks stock.
 -- Every change writes settings and asks the engine to re-filter; it never starts a search.
 local _, ns = ...
 
@@ -21,7 +21,7 @@ local CHECK_TEXTURE = [[Interface\Buttons\UI-CheckBox-Check]] -- fallback if the
 local RATING_CHIPS = { 2000, 3000, 3200, 3500 }
 local RATING_BOX_WIDTH = 54
 local SIGN_UP_LABEL_WIDTH = 72
-local SORT_LABEL_WIDTH = 34
+local SORT_ARROW_ATLAS = "auctionhouse-ui-sortarrow" -- Blizzard's column sort arrow (Communities roster)
 local DUNGEON_SORT_OPTIONS = {
 	{ field = "leaderRating", dir = "desc", text = "Leader rating (high to low)" }, -- default
 	{ field = "blizzard", text = "Blizzard order" },
@@ -41,8 +41,10 @@ local DIFFICULTIES = {
 	{ rank = 3, global = "PLAYER_DIFFICULTY6", fallback = "Mythic" },
 }
 local RAID_BOX_WIDTH = 46
+local BOSS_COLUMNS = 2
 local BOSS_ROW_STEP = 20
 local MIN_BOSS_ROWS = 2 -- the boss list never shrinks below this; the rest is scrolled to
+local MARK_DEAD = [[Interface\RaidFrame\ReadyCheck-NotReady]] -- Blizzard's ready-check cross
 local FIT_CHECKS = { "party", "hasTank", "hasHealer", "battleRes", "bloodlust", "notDeclined", "hideClass" }
 local NEEDS_COLUMN_WIDTH = CONTENT_WIDTH / 2
 local SIGN_UP_ROLES = { "TANK", "HEALER", "DAMAGER" }
@@ -155,15 +157,14 @@ end
 
 -- Settings (gear menu) ----------------------------------------------------------------------
 
--- Kept in a Blizzard menu behind the gear icon: what to show on each group row (saved in
--- rowInfo), dungeon abbreviations in the grid (saved on the profile), then Reset all.
+-- Kept in a Blizzard menu behind the gear icon: what to show on each group row (saved
+-- in rowInfo), Show ranges (saved on the profile), then Reset all.
 local SETTINGS_OPTIONS = {
 	{ key = "leaderRating", text = "Show leader rating", tooltip = "Show the group leader's Mythic+ rating on each group." },
 	{ key = "region", text = "Show region", tooltip = "Show the group leader's region (flag and tag, for example East or DE) on each group." },
 	{ key = "specs", text = "Show spec role", tooltip = "Show each member's spec icon with a role badge instead of Blizzard's class icons. Off: Blizzard's default icons." },
 	{ key = "leader", text = "Show who's leader", tooltip = "Show a crown on the group leader's icon." },
 	{ key = "leaderProgress", text = "Show leader progress", tooltip = "Show the raid leader's progress in that raid (and their main's, if better) from Raider.IO. Needs Raider.IO." },
-	{ key = "dungeonAbbreviations", onProfile = true, text = "Show dungeon abbreviations", tooltip = "Show short dungeon names (for example KR or RLP) on the dungeon buttons instead of the names." },
 	{ key = "showRanges", onProfile = true, text = "Show ranges", tooltip = "Show the Ranges section (Dungeons: leader rating; Raids: members, most tanks and healers). Off: the section is hidden and those ranges don't filter; your values come back when you turn it on again." },
 }
 
@@ -178,6 +179,45 @@ local function ResetAll()
 	Changed()
 end
 
+-- Sort ---------------------------------------------------------------------------------------
+
+local function SortOptionMatches(option, sort)
+	return option.field == sort.field and (option.dir == nil or option.dir == (sort.dir == "asc" and "asc" or "desc"))
+end
+
+-- Name of the active category's current sort (sort button tooltip).
+local function SortText()
+	local settings = Current()
+	if not settings then
+		return ""
+	end
+	for _, option in ipairs(SortOptions()) do
+		if SortOptionMatches(option, settings.sort) then
+			return L[option.text]
+		end
+	end
+	return L["Blizzard order"]
+end
+
+-- Sort menu (the sort icon next to the gear): the active category's choices as radio options.
+local function SetupSortMenu(dropdown, root)
+	local settings = Current()
+	if not settings then
+		return
+	end
+	root:CreateTitle(L["Sort"])
+	for _, option in ipairs(SortOptions()) do
+		root:CreateRadio(L[option.text], function()
+			return SortOptionMatches(option, settings.sort)
+		end, function()
+			settings.sort.field = option.field
+			settings.sort.dir = option.dir or "desc"
+			Changed()
+		end)
+	end
+end
+
+-- Gear menu: the display settings, then Reset all.
 local function SetupSettingsMenu(dropdown, root)
 	root:CreateTitle(L["Settings"])
 	for _, option in ipairs(SETTINGS_OPTIONS) do
@@ -211,46 +251,6 @@ local function SetupSettingsMenu(dropdown, root)
 		reset:SetTooltip(function(tooltip)
 			GameTooltip_SetTitle(tooltip, L["Reset all"])
 			GameTooltip_AddNormalLine(tooltip, L["Clear this category's filters and sort, and sign up as your spec's role again."])
-		end)
-	end
-end
-
--- Sort ---------------------------------------------------------------------------------------
-
-local function SortOptionMatches(option, sort)
-	return option.field == sort.field and (option.dir == nil or option.dir == (sort.dir == "asc" and "asc" or "desc"))
-end
-
-local function SortText()
-	local settings = Current()
-	if not settings then
-		return ""
-	end
-	for _, option in ipairs(SortOptions()) do
-		if SortOptionMatches(option, settings.sort) then
-			return L[option.text]
-		end
-	end
-	for _, option in ipairs(SortOptions()) do
-		if option.field == settings.sort.field then
-			return L[option.text]
-		end
-	end
-	return L["Blizzard order"]
-end
-
-local function SetupSortMenu(dropdown, root)
-	local settings = Current()
-	if not settings then
-		return
-	end
-	for _, option in ipairs(SortOptions()) do
-		root:CreateRadio(L[option.text], function()
-			return SortOptionMatches(option, settings.sort)
-		end, function()
-			settings.sort.field = option.field
-			settings.sort.dir = option.dir or "desc"
-			Changed()
 		end)
 	end
 end
@@ -311,25 +311,47 @@ local function DungeonButton(index)
 
 	button.tlfgCheck = NewCheckmark(button, 14)
 	button.tlfgCheck:SetPoint("RIGHT", button, "RIGHT", -4, 0)
+	-- Excluded (right-click): Blizzard's ready-check cross where the checkmark goes.
+	button.tlfgCross = button:CreateTexture(nil, "OVERLAY")
+	button.tlfgCross:SetSize(14, 14)
+	button.tlfgCross:SetPoint("RIGHT", button, "RIGHT", -4, 0)
+	button.tlfgCross:SetTexture(MARK_DEAD)
+	button.tlfgCross:Hide()
 
 	local label = button:GetFontString()
 	if label then
 		label:SetWordWrap(false)
 	end
-	button:SetScript("OnClick", function(self)
+	-- Left-click selects (only selected dungeons shown), right-click excludes (that dungeon hidden);
+	-- the same click again clears it.
+	button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	button:SetScript("OnClick", function(self, mouseButton)
 		local settings = Current()
 		local groupID = self.tlfgGroupID
-		if settings and groupID then
-			settings.activityGroups[groupID] = (not settings.activityGroups[groupID]) or nil
-			PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-			Changed()
+		if not (settings and groupID and settings.activityGroups and settings.excludedGroups) then
+			return
 		end
+		local marks, other = settings.activityGroups, settings.excludedGroups
+		if mouseButton == "RightButton" then
+			marks, other = settings.excludedGroups, settings.activityGroups
+		end
+		local on = not marks[groupID]
+		marks[groupID] = on or nil
+		if on then
+			other[groupID] = nil
+		end
+		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+		Changed()
 	end)
 	button:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		GameTooltip:SetText(self.tlfgName or "")
-		GameTooltip:AddLine(self.tlfgSelected and L["Selected: click to remove"]
-			or (IsRaids() and L["Click to show only selected raids"] or L["Click to show only selected dungeons"]), 1, 1, 1, true)
+		if self.tlfgSelected then
+			GameTooltip:AddLine(L["Selected: only the selected dungeons are shown."], 0.1, 1, 0.1, true)
+		elseif self.tlfgExcluded then
+			GameTooltip:AddLine(L["Excluded: this dungeon's groups are hidden."], 1, 0.25, 0.25, true)
+		end
+		GameTooltip:AddLine(L["Left-click: show only selected dungeons. Right-click: hide this dungeon. Click again to clear."], 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	button:SetScript("OnLeave", GameTooltip_Hide)
@@ -337,7 +359,10 @@ local function DungeonButton(index)
 	return button
 end
 
--- Raid boss checkbox (tick = only groups that haven't killed this boss yet), two columns.
+-- Raid boss checkbox, two columns. Left-click ticks it "alive" (only groups that haven't killed
+-- it yet), right-click marks it "dead" (only groups that have killed it: Blizzard's ready-check
+-- cross in the box, name greyed); the same click again clears the mark. The box's look is set from
+-- the settings on every layout.
 local function BossCheck(index)
 	local check = ui.bossChecks[index]
 	if check then
@@ -345,18 +370,38 @@ local function BossCheck(index)
 	end
 	check = CreateFrame("CheckButton", nil, ui.bossArea, "UICheckButtonTemplate")
 	check:SetSize(22, 22)
+	check:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	if type(check.Text) == "table" then
 		check.Text:SetFontObject("GameFontHighlightSmall")
 		check.Text:SetWidth(NEEDS_COLUMN_WIDTH - 26)
 		check.Text:SetJustifyH("LEFT")
 		check.Text:SetWordWrap(false)
 	end
-	check:SetScript("OnClick", function(self)
+	check.tlfgCross = check:CreateTexture(nil, "OVERLAY")
+	check.tlfgCross:SetSize(14, 14)
+	check.tlfgCross:SetPoint("CENTER", check, "CENTER", 0, 0)
+	check.tlfgCross:SetTexture(MARK_DEAD)
+	check.tlfgCross:Hide()
+
+	check:SetScript("OnClick", function(self, mouseButton)
 		local settings = Current()
-		if settings and settings.aliveBosses and self.tlfgBossID then
-			settings.aliveBosses[self.tlfgBossID] = self:GetChecked() and true or nil
-			Changed()
+		local bossID = self.tlfgBossID
+		if not (settings and settings.aliveBosses and settings.deadBosses and bossID) then
+			return
 		end
+		local marks, other = settings.aliveBosses, settings.deadBosses
+		if mouseButton == "RightButton" then
+			marks, other = settings.deadBosses, settings.aliveBosses
+		end
+		local on = not marks[bossID]
+		marks[bossID] = on or nil
+		if on then
+			other[bossID] = nil
+			if settings.maxBosses == 0 then
+				settings.maxBosses = -1 -- marking a boss turns Fresh run off (Fresh run clears the marks)
+			end
+		end
+		Changed()
 	end)
 	check:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -364,7 +409,12 @@ local function BossCheck(index)
 		if self.tlfgRaid then
 			GameTooltip:AddLine(self.tlfgRaid, 0.6, 0.6, 0.6, true)
 		end
-		GameTooltip:AddLine(L["Ticked: only groups that haven't killed this boss yet."], 1, 1, 1, true)
+		if self.tlfgState == "alive" then
+			GameTooltip:AddLine(L["Only groups that haven't killed this boss yet."], 0.1, 1, 0.1, true)
+		elseif self.tlfgState == "dead" then
+			GameTooltip:AddLine(L["Only groups that have already killed this boss."], 1, 0.25, 0.25, true)
+		end
+		GameTooltip:AddLine(L["Left-click: still alive. Right-click: already dead. Click again to clear."], 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	check:SetScript("OnLeave", GameTooltip_Hide)
@@ -545,6 +595,47 @@ local function Build()
 	ui.gear:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
 	ui.gear:SetupMenu(SetupSettingsMenu)
 	SimpleTooltip(ui.gear, L["Settings"])
+	-- Sort: an icon dropdown left of the gear, drawn like the gear (Blizzard's icon dropdown button):
+	-- Blizzard's column sort arrow twice, one pointing up and one down; the menu lists the active
+	-- category's sort choices.
+	ui.sort = CreateFrame("DropdownButton", nil, content)
+	ui.sort:SetSize(18, 16)
+	ui.sort:SetPoint("RIGHT", ui.gear, "LEFT", -6, 0)
+	ui.sort.tlfgArrows = {}
+	for index, x in ipairs({ -3, 3 }) do
+		for _, layer in ipairs({ "ARTWORK", "HIGHLIGHT" }) do
+			local arrow = ui.sort:CreateTexture(nil, layer)
+			arrow:SetAtlas(SORT_ARROW_ATLAS)
+			arrow:SetSize(10, 10)
+			arrow:SetPoint("CENTER", ui.sort, "CENTER", x, 0)
+			if index == 1 then
+				arrow:SetRotation(math.pi) -- the left arrow points the other way
+			end
+			if layer == "HIGHLIGHT" then
+				arrow:SetBlendMode("ADD")
+				arrow:SetAlpha(0.4)
+			end
+			ui.sort.tlfgArrows[#ui.sort.tlfgArrows + 1] = arrow
+		end
+	end
+	ui.sort:HookScript("OnMouseDown", function(self)
+		for _, arrow in ipairs(self.tlfgArrows) do
+			arrow:AdjustPointsOffset(1, -1)
+		end
+	end)
+	ui.sort:HookScript("OnMouseUp", function(self)
+		for _, arrow in ipairs(self.tlfgArrows) do
+			arrow:AdjustPointsOffset(-1, 1)
+		end
+	end)
+	ui.sort:SetupMenu(SetupSortMenu)
+	ui.sort:HookScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip_SetTitle(GameTooltip, L["Sort"])
+		GameTooltip_AddNormalLine(GameTooltip, SortText())
+		GameTooltip:Show()
+	end)
+	ui.sort:HookScript("OnLeave", GameTooltip_Hide)
 
 	ui.dungeonsLabel = NewLabel(content, L["Dungeons"])
 	ui.dungeonCount = NewLabel(content, "", "GameFontHighlightSmall")
@@ -555,6 +646,7 @@ local function Build()
 			for _, group in ipairs(ns.Categories.GetSeasonGroups(ns.Categories.GetActive())) do
 				settings.activityGroups[group.groupID] = true
 			end
+			wipe(settings.excludedGroups or {})
 			Changed()
 		end
 	end)
@@ -564,11 +656,12 @@ local function Build()
 		local settings = Current()
 		if settings then
 			wipe(settings.activityGroups)
+			wipe(settings.excludedGroups or {})
 			Changed()
 		end
 	end)
 	ui.noDungeons:SetPoint("LEFT", ui.allDungeons, "RIGHT", 4, 0)
-	SimpleTooltip(ui.noDungeons, L["Clear the selection (all groups shown)."])
+	SimpleTooltip(ui.noDungeons, L["Clear the selection and the exclusions (all groups shown)."])
 	ui.dungeonButtons = {}
 	ui.dungeonsUnavailable = NewLabel(content, "", "GameFontDisableSmall")
 
@@ -590,9 +683,9 @@ local function Build()
 		ui.difficulties[index] = chip
 	end
 
-	-- Raids only: boss list (tick = still alive) with Fresh run on its title row. The season's raids
-	-- share one list, in a clipped area that scrolls with the wheel when it has more bosses than the
-	-- panel has room for.
+	-- Raids only: boss checkboxes (alive or dead) with None and Fresh run on the header row.
+	-- The season's raids share one list, in a clipped area that scrolls with the wheel when it has
+	-- more bosses than the panel has room for.
 	ui.bossesTitle = NewLabel(content, L["Bosses"])
 	ui.bossArea = CreateFrame("Frame", nil, content)
 	ui.bossArea:SetClipsChildren(true)
@@ -610,11 +703,25 @@ local function Build()
 	end)
 	ui.bossChecks = {}
 	ui.bossesUnavailable = NewLabel(content, L["Boss list not available yet"], "GameFontDisableSmall")
+	ui.noBosses = NewTextButton(content, L["None"], function()
+		local settings = Current()
+		if settings and settings.aliveBosses and settings.deadBosses then
+			wipe(settings.aliveBosses)
+			wipe(settings.deadBosses)
+			Changed()
+		end
+	end)
+	SimpleTooltip(ui.noBosses, L["Clear the boss marks."])
 	ui.freshRun = NewToggleChip(content, L["Fresh run"], 76)
 	ui.freshRun:SetScript("OnClick", function()
 		local settings = Current()
 		if settings and settings.maxBosses ~= nil then
 			settings.maxBosses = settings.maxBosses == 0 and -1 or 0
+			if settings.maxBosses == 0 then
+				-- Fresh run replaces the boss marks (every boss is alive in a fresh run)
+				wipe(settings.aliveBosses or {})
+				wipe(settings.deadBosses or {})
+			end
 			PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 			Changed()
 		end
@@ -687,14 +794,6 @@ local function Build()
 		ui.signUp[role] = NewRoleButton(content, role)
 	end
 
-	ui.sortLabel = NewLabel(content, L["Sort"])
-	ui.sort = CreateFrame("DropdownButton", nil, content, "WowStyle1DropdownTemplate")
-	ui.sort:SetWidth(CONTENT_WIDTH - SORT_LABEL_WIDTH)
-	ui.sort:SetupMenu(SetupSortMenu)
-	ui.sort:SetSelectionText(function()
-		return SortText()
-	end)
-
 	-- Footer: how many groups match, or why the filter isn't running
 	ui.status = NewLabel(content, "", "GameFontHighlightSmall")
 	ui.status:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 0, 2)
@@ -712,6 +811,88 @@ local function Place(region, x, y)
 	region:SetPoint("TOPLEFT", ui.content, "TOPLEFT", x, y)
 end
 
+-- Raids: the header row is Difficulty ... gear, then [Normal] [Heroic] [Mythic] (none selected =
+-- all difficulties). Returns the next y.
+local function LayoutDifficulty(settings, y)
+	ui.difficultyLabel:Show()
+	Place(ui.difficultyLabel, 0, y - 5)
+	for index, chip in ipairs(ui.difficulties) do
+		Place(chip, (index - 1) * (chip:GetWidth() + GRID_GAP), y - 22)
+		chip.tlfgCheck:SetShown(settings.difficulties and settings.difficulties[chip.tlfgRank] == true)
+		chip:Show()
+	end
+	return y - 22 - 26
+end
+
+-- Raids: Bosses ... None [Fresh run], then a checkbox per boss of every raid of the season
+-- (ticked = still alive, cross = already dead). The list scrolls with the wheel when
+-- it has more bosses than the panel has room for. Returns the next y.
+local function LayoutBosses(settings, y, bossRows)
+	local bossRaids = {}
+	for _, raid in ipairs(ns.Categories.GetBossListRaids()) do
+		if raid.bosses and #raid.bosses > 0 then
+			bossRaids[#bossRaids + 1] = raid
+		end
+	end
+	ui.bossesTitle:SetText(#bossRaids == 1 and string.format(L["Bosses (%s)"], ShortName(bossRaids[1].name))
+		or L["Bosses"])
+	ui.bossesTitle:Show()
+	Place(ui.bossesTitle, 0, y)
+	local freshX = CONTENT_WIDTH - ui.freshRun:GetWidth()
+	Place(ui.freshRun, freshX, y + 3)
+	ui.freshRun.tlfgCheck:SetShown(settings.maxBosses == 0)
+	ui.freshRun:Show()
+	y = y - 18
+
+	-- One list across the raids (the panel is only so tall): the raid is named in each tooltip.
+	local bosses = {}
+	for _, raid in ipairs(bossRaids) do
+		for _, boss in ipairs(raid.bosses) do
+			bosses[#bosses + 1] = { boss = boss, raid = #bossRaids > 1 and ShortName(raid.name) or nil }
+		end
+	end
+	local anyMark = next(settings.aliveBosses or {}) ~= nil or next(settings.deadBosses or {}) ~= nil
+	ui.noBosses:SetShown(#bosses > 0 and anyMark)
+	Place(ui.noBosses, freshX - ui.noBosses:GetWidth() - 6, y + 18 + 1)
+	ui.bossRowsTotal = math.ceil(#bosses / BOSS_COLUMNS)
+	ui.bossRowsShown = math.max(MIN_BOSS_ROWS, math.min(ui.bossRowsTotal, bossRows or ui.bossRowsTotal))
+	ui.bossOffset = math.min(math.max(ui.bossOffset or 0, 0), (ui.bossRowsTotal - ui.bossRowsShown) * BOSS_ROW_STEP)
+	ui.bossArea:SetShown(#bosses > 0)
+	if #bosses > 0 then
+		ui.bossArea:SetSize(CONTENT_WIDTH, ui.bossRowsShown * BOSS_ROW_STEP)
+		Place(ui.bossArea, 0, y)
+	end
+	for index, entry in ipairs(bosses) do
+		local check = BossCheck(index)
+		local bossID = entry.boss.id
+		local state = (settings.aliveBosses and settings.aliveBosses[bossID] and "alive")
+			or (settings.deadBosses and settings.deadBosses[bossID] and "dead") or nil
+		check.tlfgBossID = bossID
+		check.tlfgName = entry.boss.name
+		check.tlfgRaid = entry.raid
+		check.tlfgState = state
+		if type(check.Text) == "table" then
+			check.Text:SetText(entry.boss.name)
+			check.Text:SetFontObject(state == "dead" and "GameFontDisableSmall" or "GameFontHighlightSmall")
+		end
+		check:SetChecked(state == "alive")
+		check.tlfgCross:SetShown(state == "dead")
+		check:ClearAllPoints()
+		check:SetPoint("TOPLEFT", ui.bossArea, "TOPLEFT", -2 + ((index - 1) % BOSS_COLUMNS) * NEEDS_COLUMN_WIDTH,
+			ui.bossOffset - math.floor((index - 1) / BOSS_COLUMNS) * BOSS_ROW_STEP)
+		check:Show()
+	end
+	for index = #bosses + 1, #ui.bossChecks do
+		ui.bossChecks[index]:Hide()
+	end
+	ui.bossesUnavailable:SetShown(#bosses == 0)
+	if #bosses == 0 then
+		Place(ui.bossesUnavailable, 0, y)
+		return y - 18 - 5
+	end
+	return y - ui.bossRowsShown * BOSS_ROW_STEP - 6
+end
+
 -- Stack every control top to bottom (the dungeon count and Group needs rows vary). The panel keeps
 -- the Group Finder's height; if the controls wouldn't fit, the dungeon buttons get shorter.
 local function LayoutPass(settings, buttonHeight, bossRows)
@@ -720,28 +901,45 @@ local function LayoutPass(settings, buttonHeight, bossRows)
 	local raids = IsRaids()
 	local profile = ns.Settings.Profile()
 
-	-- Header: Dungeons|Raids n/N  All  None ... gear
-	local groups = ns.Categories.GetSeasonGroups(ns.Categories.GetActive())
+	-- Raids have no raid buttons: the header row is Difficulty (see LayoutDifficulty), then the bosses.
+	local showGrid = not raids
+	ui.dungeonsLabel:SetShown(showGrid)
+	ui.dungeonCount:SetShown(showGrid)
+	local groups = showGrid and ns.Categories.GetSeasonGroups(ns.Categories.GetActive()) or {}
+	if raids then
+		for _, button in ipairs(ui.dungeonButtons) do
+			button:Hide()
+		end
+		ui.allDungeons:Hide()
+		ui.noDungeons:Hide()
+		ui.dungeonsUnavailable:Hide()
+		y = LayoutDifficulty(settings, y)
+		y = LayoutBosses(settings, y, bossRows)
+	end
+
+	-- Dungeons header: Dungeons n/N  All  None ... gear
 	local selected = 0
 	for _, group in ipairs(groups) do
 		if settings.activityGroups[group.groupID] then
 			selected = selected + 1
 		end
 	end
-	ui.dungeonsLabel:SetText(raids and L["Raids"] or L["Dungeons"])
-	Place(ui.dungeonsLabel, 0, y - 5)
-	ui.dungeonCount:SetText(selected > 0 and string.format("%d/%d", selected, #groups) or L["all"])
-	y = y - 26
+	if showGrid then
+		ui.dungeonsLabel:SetText(L["Dungeons"])
+		Place(ui.dungeonsLabel, 0, y - 5)
+		ui.dungeonCount:SetText(string.format("%d/%d", selected, #groups)) -- selected dungeons, 0/N to N/N
+		y = y - 26
+	end
 
 	-- Dungeons or raids (2 x N grid)
-	local showAbbreviations = profile.dungeonAbbreviations == true
 	for index, group in ipairs(groups) do
 		local button = DungeonButton(index)
 		local isSelected = settings.activityGroups[group.groupID] == true
 		button.tlfgGroupID = group.groupID
 		button.tlfgName = group.name
 		button.tlfgSelected = isSelected
-		local abbreviated = showAbbreviations and group.abbreviation ~= ""
+		-- Dungeon buttons always show the short name (KR, RLP, ...); the full name is in the tooltip.
+		local abbreviated = group.abbreviation ~= nil and group.abbreviation ~= ""
 		button:SetText(abbreviated and group.abbreviation or ShortName(group.name))
 		-- Names sit left, after the icon; abbreviations are centered in the open space between the
 		-- icon's right edge (26) and the checkmark's left edge (18 from the right).
@@ -752,7 +950,12 @@ local function LayoutPass(settings, buttonHeight, bossRows)
 			label:SetPoint("RIGHT", button, "RIGHT", abbreviated and -18 or -20, 0)
 			label:SetJustifyH(abbreviated and "CENTER" or "LEFT")
 		end
+		local isExcluded = not isSelected and settings.excludedGroups ~= nil and settings.excludedGroups[group.groupID] == true
+		button.tlfgExcluded = isExcluded
 		button.tlfgCheck:SetShown(isSelected)
+		button.tlfgCross:SetShown(isExcluded)
+		button:SetNormalFontObject(isExcluded and "GameFontDisableSmall" or "GameFontNormalSmall")
+		button.tlfgIcon:SetDesaturated(isExcluded)
 		if group.icon then
 			button.tlfgIcon:SetTexture(group.icon)
 			button.tlfgIcon:Show()
@@ -769,91 +972,35 @@ local function LayoutPass(settings, buttonHeight, bossRows)
 		ui.dungeonButtons[index]:Hide()
 	end
 	local rows = math.ceil(#groups / GRID_COLUMNS)
-	ui.allDungeons:SetShown(rows > 0)
-	ui.noDungeons:SetShown(rows > 0)
-	if rows == 0 then
-		ui.dungeonsUnavailable:SetText(raids and L["Raid list not available yet"] or L["Dungeon list not available yet"])
-		Place(ui.dungeonsUnavailable, 0, y)
-		ui.dungeonsUnavailable:Show()
-		y = y - 18
-	else
-		ui.dungeonsUnavailable:Hide()
-		y = y - rows * (buttonHeight + GRID_GAP)
+	if showGrid then
+		ui.allDungeons:SetShown(rows > 0)
+		ui.noDungeons:SetShown(rows > 0)
+		if rows == 0 then
+			ui.dungeonsUnavailable:SetText(L["Dungeon list not available yet"])
+			Place(ui.dungeonsUnavailable, 0, y)
+			ui.dungeonsUnavailable:Show()
+			y = y - 18
+		else
+			ui.dungeonsUnavailable:Hide()
+			y = y - rows * (buttonHeight + GRID_GAP)
+		end
 	end
 	y = y - 5
 
-	-- Raids: Difficulty [Normal] [Heroic] [Mythic]
-	ui.difficultyLabel:SetShown(raids)
-	for index, chip in ipairs(ui.difficulties) do
-		chip:SetShown(raids)
-		if raids then
-			Place(chip, (index - 1) * (chip:GetWidth() + GRID_GAP), y - 15)
-			chip.tlfgCheck:SetShown(settings.difficulties and settings.difficulties[chip.tlfgRank] == true)
+	-- Dungeons: no difficulty buttons (Raids place them at the top, see LayoutDifficulty)
+	if not raids then
+		ui.difficultyLabel:Hide()
+		for _, chip in ipairs(ui.difficulties) do
+			chip:Hide()
 		end
-	end
-	if raids then
-		Place(ui.difficultyLabel, 0, y)
-		y = y - 15 - 26
 	end
 
-	-- Raids: Bosses (<raid>) ... [Fresh run]; a checkbox per boss, ticked = not killed yet. The
-	-- season's raids share one list, each under its own name; selecting raids narrows it to those.
-	ui.bossesTitle:SetShown(raids)
-	ui.freshRun:SetShown(raids)
-	local bossRaids = {}
-	for _, raid in ipairs(raids and ns.Categories.GetBossListRaids(settings) or {}) do
-		if raid.bosses and #raid.bosses > 0 then
-			bossRaids[#bossRaids + 1] = raid
+	-- Dungeons: no boss list
+	if not raids then
+		for _, region in ipairs({ ui.bossesTitle, ui.freshRun, ui.noBosses, ui.bossArea, ui.bossesUnavailable }) do
+			region:Hide()
 		end
-	end
-	if raids then
-		ui.bossesTitle:SetText(#bossRaids == 1 and string.format(L["Bosses (%s)"], ShortName(bossRaids[1].name))
-			or L["Bosses"])
-		Place(ui.bossesTitle, 0, y)
-		Place(ui.freshRun, CONTENT_WIDTH - ui.freshRun:GetWidth(), y + 3)
-		ui.freshRun.tlfgCheck:SetShown(settings.maxBosses == 0)
-		y = y - 18
-	end
-	-- One grid across the raids (the panel is only so tall): the raid is named in each tooltip.
-	local bosses = {}
-	for _, raid in ipairs(bossRaids) do
-		for _, boss in ipairs(raid.bosses) do
-			bosses[#bosses + 1] = { boss = boss, raid = #bossRaids > 1 and ShortName(raid.name) or nil }
-		end
-	end
-	ui.bossRowsTotal = math.ceil(#bosses / 2)
-	ui.bossRowsShown = math.max(MIN_BOSS_ROWS, math.min(ui.bossRowsTotal, bossRows or ui.bossRowsTotal))
-	ui.bossOffset = math.min(math.max(ui.bossOffset or 0, 0), (ui.bossRowsTotal - ui.bossRowsShown) * BOSS_ROW_STEP)
-	ui.bossArea:SetShown(raids and #bosses > 0)
-	if raids and #bosses > 0 then
-		ui.bossArea:SetSize(CONTENT_WIDTH, ui.bossRowsShown * BOSS_ROW_STEP)
-		Place(ui.bossArea, 0, y)
-	end
-	for index, entry in ipairs(bosses) do
-		local check = BossCheck(index)
-		check.tlfgBossID = entry.boss.id
-		check.tlfgName = entry.boss.name
-		check.tlfgRaid = entry.raid
-		if type(check.Text) == "table" then
-			check.Text:SetText(entry.boss.name)
-		end
-		check:SetChecked(settings.aliveBosses and settings.aliveBosses[entry.boss.id] == true)
-		check:ClearAllPoints()
-		check:SetPoint("TOPLEFT", ui.bossArea, "TOPLEFT", -2 + ((index - 1) % 2) * NEEDS_COLUMN_WIDTH,
-			ui.bossOffset - math.floor((index - 1) / 2) * BOSS_ROW_STEP)
-		check:Show()
-	end
-	for index = #bosses + 1, #ui.bossChecks do
-		ui.bossChecks[index]:Hide()
-	end
-	ui.bossesUnavailable:SetShown(raids and #bosses == 0)
-	if raids then
-		if #bosses == 0 then
-			Place(ui.bossesUnavailable, 0, y)
-			y = y - 18
-		else
-			y = y - ui.bossRowsShown * BOSS_ROW_STEP - 4
-		end
+		ui.bossRowsTotal = 0
 	end
 
 	-- Ranges (hidden from the gear menu; while hidden the ranges don't filter, see Engine).
@@ -968,11 +1115,6 @@ local function LayoutPass(settings, buttonHeight, bossRows)
 	end
 	y = y - 28
 
-	-- Sort [dropdown]
-	Place(ui.sortLabel, 0, y - 6)
-	Place(ui.sort, SORT_LABEL_WIDTH, y)
-	y = y - 26
-
 	return -y, rows
 end
 
@@ -1048,9 +1190,6 @@ function FilterPanel:Refresh(full)
 		return
 	end
 	Layout(settings)
-	if not (ui.sort.IsMenuOpen and ui.sort:IsMenuOpen()) then
-		ui.sort:GenerateMenu()
-	end
 end
 
 function FilterPanel:RequestRefresh(full)

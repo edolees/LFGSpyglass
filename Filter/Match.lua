@@ -60,6 +60,9 @@ function Match.ActiveFilters(settings, player, classUtility)
 	if next(settings.activityGroups or {}) ~= nil then
 		active[#active + 1] = "dungeons"
 	end
+	if next(settings.excludedGroups or {}) ~= nil then
+		active[#active + 1] = "excludedDungeons"
+	end
 	if (settings.minLeaderRating or 0) > 0 then
 		active[#active + 1] = "minRating"
 	end
@@ -71,6 +74,9 @@ function Match.ActiveFilters(settings, player, classUtility)
 	end
 	if next(settings.aliveBosses or {}) ~= nil then
 		active[#active + 1] = "aliveBosses"
+	end
+	if next(settings.deadBosses or {}) ~= nil then
+		active[#active + 1] = "deadBosses"
 	end
 	for _, key in ipairs(RAID_MINIMA) do
 		if MinOn(settings[key]) then
@@ -173,9 +179,14 @@ function Match.IsVisible(snap, settings, player, classUtility)
 	end
 	local readable = snap.readable == true
 
-	-- Dungeon
+	-- Dungeon: selected ones only; excluded ones (right-click) never. Unknown dungeon fails either.
 	if next(settings.activityGroups or {}) ~= nil then
 		if not readable or snap.activityGroupID == nil or not settings.activityGroups[snap.activityGroupID] then
+			return false
+		end
+	end
+	if next(settings.excludedGroups or {}) ~= nil then
+		if not readable or snap.activityGroupID == nil or settings.excludedGroups[snap.activityGroupID] then
 			return false
 		end
 	end
@@ -202,15 +213,19 @@ function Match.IsVisible(snap, settings, player, classUtility)
 	local bosses = readable and snap.bossesDefeated or nil
 	local members = readable and snap.numMembers or nil
 	local counts = readable and snap.roleCounts or nil
-	-- Bosses still alive (Raids): a ticked boss of this group's raid must not be killed yet;
-	-- unknown kills (unreadable or unmatched names) fail. Bosses of other raids don't apply.
-	if next(settings.aliveBosses or {}) ~= nil and snap.raidBossIDs then
-		for bossID in pairs(settings.aliveBosses) do
-			if snap.raidBossIDs[bossID] then
-				local killed = readable and snap.killedBossIDs or nil
-				if not killed or killed[bossID] then
-					return false
-				end
+	-- Boss marks (Raids): an "alive" boss of this group's raid must not be killed yet, a "dead" one
+	-- must be killed already; unknown kills (unreadable or unmatched names) fail. Bosses of other
+	-- raids don't apply.
+	if snap.raidBossIDs then
+		local killed = readable and snap.killedBossIDs or nil
+		for bossID in pairs(settings.aliveBosses or {}) do
+			if snap.raidBossIDs[bossID] and (not killed or killed[bossID]) then
+				return false
+			end
+		end
+		for bossID in pairs(settings.deadBosses or {}) do
+			if snap.raidBossIDs[bossID] and not (killed and killed[bossID]) then
+				return false
 			end
 		end
 	end

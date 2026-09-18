@@ -8,6 +8,7 @@ local SCHEMA_VERSION = 2 -- 2: roles section replaced by fit.party
 local function DungeonDefaults()
 	return {
 		activityGroups = {}, -- set { [groupID] = true }; empty = all dungeons
+		excludedGroups = {}, -- set { [groupID] = true }: dungeons whose groups are hidden (right-click)
 		minLeaderRating = 0, -- 0 = off
 		maxLeaderRating = 0, -- 0 = off
 		fit = { party = true, hasTank = false, hasHealer = false, notDeclined = false, bloodlust = false, battleRes = false, hideClass = false }, -- Party fit on by default
@@ -19,9 +20,9 @@ end
 -- real value: Fresh run, at most 0 tanks).
 local function RaidDefaults()
 	return {
-		activityGroups = {}, -- set { [groupID] = true }; empty = all raids
 		difficulties = {}, -- set { [1|2|3] = true } (Normal, Heroic, Mythic); empty = all
 		aliveBosses = {}, -- set { [journalEncounterID] = true }: bosses the group must not have killed yet
+		deadBosses = {}, -- set { [journalEncounterID] = true }: bosses the group must have killed already
 		maxBosses = -1, -- -1 = off; 0 = Fresh run
 		minMembers = 0,
 		maxMembers = -1,
@@ -51,8 +52,6 @@ local defaults = {
 		signUpRoles = { TANK = false, HEALER = false, DAMAGER = false },
 		-- Info added to each group row, toggled in the panel's Settings section
 		rowInfo = { leaderRating = true, region = true, specs = false, leader = false, leaderProgress = true },
-		-- Dungeon grid shows abbreviations (KR, RLP, ...) instead of names (gear menu)
-		dungeonAbbreviations = false,
 		-- Ranges section shown (gear menu); the rating range doesn't filter while it's hidden
 		showRanges = true,
 		notices = { otherFilterAddonShown = false },
@@ -85,6 +84,19 @@ local function MigrateProfile(profile)
 		end
 	end
 	profile.schemaVersion = SCHEMA_VERSION
+end
+
+-- Raids no longer have raid buttons: drop a saved raid selection.
+local function DropRaidSelection(profile)
+	local raids = profile.categories and profile.categories[RAIDS]
+	if type(raids) == "table" then
+		raids.activityGroups = nil
+	end
+end
+
+-- The dungeon buttons are always abbreviated now: drop the old option.
+local function DropAbbreviationOption(profile)
+	profile.dungeonAbbreviations = nil
 end
 
 -- "Hide Ranges" (earlier option) became "Show Ranges": carry a saved choice over once.
@@ -133,10 +145,14 @@ function Settings:OnInitialize()
 	MigrateProfile(self.db.profile)
 	NormalizeSorts(self.db.profile)
 	MigrateHideRanges(self.db.profile)
+	DropRaidSelection(self.db.profile)
+	DropAbbreviationOption(self.db.profile)
 	local function OnProfileChanged()
 		MigrateProfile(self.db.profile)
 		NormalizeSorts(self.db.profile)
 		MigrateHideRanges(self.db.profile)
+		DropRaidSelection(self.db.profile)
+		DropAbbreviationOption(self.db.profile)
 		self:SendMessage(ns.MSG.SettingsChanged)
 	end
 	self.db.RegisterCallback(self, "OnProfileChanged", OnProfileChanged)

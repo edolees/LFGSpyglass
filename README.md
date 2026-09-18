@@ -5,9 +5,11 @@ LFG Spyglass keeps Blizzard's own look. It only changes *which* groups you see a
 
 ## Features (Raids)
 
-- **Raids**: click a current raid's button (Encounter Journal icon) and **Normal / Heroic / Mythic**.
-- **Bosses**: tick bosses of the raid to keep only groups that haven't killed them yet, or
-  one-click **Fresh run** (no bosses killed).
+- **Difficulty**: **Normal / Heroic / Mythic**.
+- **Bosses**: a checkbox for every boss of this season's raids. **Left-click** (tick) keeps only
+  groups that haven't killed it yet, **right-click** (red cross) only groups that already killed it,
+  for example to find a group for the last boss. Click again to clear, **None** clears all, and
+  one-click **Fresh run** keeps groups with no bosses killed.
 - **Ranges**: members (min / max), most tanks and most healers already in the group.
 - **Group needs**: Not Declined and Hide Class.
 - **Sort**: the leader's raid progress from Raider.IO (default; groups without it by difficulty and
@@ -17,8 +19,9 @@ LFG Spyglass keeps Blizzard's own look. It only changes *which* groups you see a
 
 ## Features (Dungeons / Mythic+)
 
-- **Dungeons**: click dungeon buttons (with their Mythic+ icons) to show only those dungeons, or use
-  **All** / **None**.
+- **Dungeons**: dungeon buttons with the Mythic+ icon and short name (KR, RLP, ...; the full name
+  is in the tooltip). **Left-click** shows only the selected dungeons, **right-click** hides that
+  dungeon (red cross). Click again to clear; **All** / **None** reset them.
 - **Leader rating range**: min and max boxes, plus quick 2000+ / 3000+ / 3200+ / 3500+ buttons.
 - **Group needs**:
   - **Party fit**: only groups with an open spot for one of your sign-up roles, or for your whole party.
@@ -35,12 +38,11 @@ LFG Spyglass keeps Blizzard's own look. It only changes *which* groups you see a
   declined you stay blocked).
 - The filtered list uses Blizzard's own rows, so signing up, the application timer and the
   **Cancel** button work exactly like stock.
-- **Reset all** (last option in the gear menu); the panel footer shows how many groups match.
+- **Sort** is the icon next to the gear, and **Reset all** is in the gear menu; the panel footer shows how many groups match.
 - Each group row shows the **leader's Mythic+ rating** and **region** (flag + tag such as
   East/Central/West with a US flag, OCE, BR, LATAM, or the EU language). Each row can also show every member's **spec icon** with a role badge and a **crown on
-  the leader**. Toggle all of these from the panel's **gear icon**, which can also show
-  **dungeon abbreviations** (KR, RLP, ...) on the dungeon buttons, and turn **Show ranges** off (hides
-  the leader rating section; no leader rating filter while hidden).
+  the leader**. Toggle all of these from the panel's **gear icon**, which can also turn
+  **Show ranges** off (hides the leader rating section; no leader rating filter while hidden).
 - Works with Raider.IO: its profile window docks to the right of the filter panel.
 
 ## Known limits
@@ -63,8 +65,8 @@ Install from CurseForge or Wago, or copy the `LFGSpyglass` folder into
 ## Using it
 
 Click the **spyglass** button in the Group Finder (above the Filter button) to turn LFG Spyglass on or
-off. Everything else is in the LFG Spyglass panel next to the Group Finder; the **gear icon** holds
-the display options and **Reset all**. There are no slash commands or options pages.
+off. Everything else is in the LFG Spyglass panel next to the Group Finder; the **sort icon** next to
+it picks the sort order, and the **gear icon** holds the display options and **Reset all**. There are no slash commands or options pages.
 Settings are saved per character.
 
 ## Policy
