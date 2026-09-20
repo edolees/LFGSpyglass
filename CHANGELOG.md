@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0 (2026-09-20)
+
+### Added
+- Dungeons: hovering a group shows each **member's name** in white at the end of their own line in
+  the tooltip (gear menu: **Show member names**, on by default). Raid tooltips are left as Blizzard
+  draws them, and names only appear when the game sends them.
+
+### Changed
+- The **Dark appearance** choice is now account-wide: set it once and every character uses it.
+
+### Fixed
+- The **Declined** label no longer sticks on groups that only delisted: once such a group lists
+  again, its row looks normal again (Blizzard keeps painting it as declined until you reload).
+
 ## 1.2.0 (2026-09-20)
 
 ### Added

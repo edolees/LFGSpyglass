@@ -1,7 +1,8 @@
--- Appearance: LFG Spyglass's own frames can be drawn dark instead of Blizzard's look. Opt-in
--- (profile.appearance), read once at load, so a change needs a reload. The only file that draws an
--- appearance. Nothing here touches Blizzard's frames or the result rows, and it ships no media: the
--- Dark appearance is plain colors plus Blizzard's own fonts and icon art.
+-- Appearance: LFG Spyglass's own frames can be drawn dark instead of Blizzard's look. Opt-in and
+-- account-wide (Settings.Global().appearance), read once at load, so a change needs a reload. This
+-- is the only file that draws an appearance. Nothing here touches Blizzard's frames or the result
+-- rows, and it ships no media: the Dark appearance is plain colors plus Blizzard's own fonts and
+-- icon art.
 local _, ns = ...
 
 local Skin = {}
@@ -157,7 +158,7 @@ end
 
 local function Decide()
 	decided = true
-	appearance = Skin.Resolve(ns.Settings.Profile().appearance)
+	appearance = Skin.Resolve(ns.Settings.Global().appearance)
 	if appearance == STOCK then
 		return
 	end
@@ -212,5 +213,5 @@ end
 
 -- The saved choice differs from the one this session was loaded with.
 function Skin.NeedsReload()
-	return decided and Skin.Resolve(ns.Settings.Profile().appearance) ~= appearance
+	return decided and Skin.Resolve(ns.Settings.Global().appearance) ~= appearance
 end

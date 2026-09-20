@@ -101,6 +101,8 @@ function SafeRead.GetEncounterCount(resultID)
 	return names and #names or nil
 end
 
+-- One member of a search result: class, spec, role, leader flag, and the name when the client
+-- sends one (it is optional and skipped when it isn't a readable string).
 function SafeRead.GetPlayerInfo(resultID, memberIndex)
 	return Call(C_LFGList.GetSearchResultPlayerInfo, resultID, memberIndex)
 end

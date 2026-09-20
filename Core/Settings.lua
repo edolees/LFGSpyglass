@@ -45,18 +45,21 @@ end
 Settings.CategoryDefaults = CategoryDefaults
 
 local defaults = {
+	-- Account-wide (every character): the appearance of LFG Spyglass's own frames, "stock" or
+	-- "dark" (gear menu). Read once at load, so a change needs a reload.
+	global = {
+		appearance = "stock",
+	},
 	profile = {
 		filterEnabled = true,
 		-- Sign up as (per character): not custom = the current spec's role only
 		signUpRolesCustom = false,
 		signUpRoles = { TANK = false, HEALER = false, DAMAGER = false },
 		-- Info added to each group row, toggled in the panel's Settings section
-		rowInfo = { leaderRating = true, region = true, specs = false, leader = false, leaderProgress = true },
+		rowInfo = { leaderRating = true, region = true, specs = false, leader = false, leaderProgress = true,
+			memberNames = true },
 		-- Ranges section shown (gear menu); the rating range doesn't filter while it's hidden
 		showRanges = true,
-		-- Appearance of LFG Spyglass's own frames (gear menu): "stock" or "dark". Opt-in; read once
-		-- at load, so a change needs a reload.
-		appearance = "stock",
 		notices = { otherFilterAddonShown = false },
 		categories = {
 			[DUNGEONS] = DungeonDefaults(), -- Dungeons
@@ -105,6 +108,17 @@ end
 -- "Match my UI" (UI-suite matching) became the appearance choice: drop the old key.
 local function DropMatchUI(profile)
 	profile.matchUI = nil
+end
+
+-- The appearance moved from the character's profile to account-wide: carry a saved choice over once.
+local function MigrateAppearance(db)
+	local profile = db.profile
+	if profile.appearance ~= nil then
+		if profile.appearance == "dark" then
+			db.global.appearance = "dark"
+		end
+		profile.appearance = nil
+	end
 end
 
 -- "Hide Ranges" (earlier option) became "Show Ranges": carry a saved choice over once.
@@ -156,6 +170,7 @@ function Settings:OnInitialize()
 	DropRaidSelection(self.db.profile)
 	DropAbbreviationOption(self.db.profile)
 	DropMatchUI(self.db.profile)
+	MigrateAppearance(self.db)
 	local function OnProfileChanged()
 		MigrateProfile(self.db.profile)
 		NormalizeSorts(self.db.profile)
@@ -163,6 +178,7 @@ function Settings:OnInitialize()
 		DropRaidSelection(self.db.profile)
 		DropAbbreviationOption(self.db.profile)
 		DropMatchUI(self.db.profile)
+		MigrateAppearance(self.db)
 		self:SendMessage(ns.MSG.SettingsChanged)
 	end
 	self.db.RegisterCallback(self, "OnProfileChanged", OnProfileChanged)
@@ -172,6 +188,11 @@ end
 
 function Settings.Profile()
 	return Settings.db.profile
+end
+
+-- Account-wide settings (shared by every character): the appearance.
+function Settings.Global()
+	return Settings.db.global
 end
 
 -- Settings for one category, or nil if the category is not supported.

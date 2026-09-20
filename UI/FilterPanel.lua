@@ -167,6 +167,7 @@ local SETTINGS_OPTIONS = {
 	{ key = "specs", text = "Show spec role", tooltip = "Show each member's spec icon with a role badge instead of Blizzard's class icons. Off: Blizzard's default icons." },
 	{ key = "leader", text = "Show who's leader", tooltip = "Show a crown on the group leader's icon." },
 	{ key = "leaderProgress", text = "Show leader progress", tooltip = "Show the raid leader's progress in that raid (and their main's, if better) from Raider.IO. Needs Raider.IO." },
+	{ key = "memberNames", text = "Show member names", tooltip = "Dungeons: add each member's name to the group tooltip when you hover a group, if the game sends it. Blizzard's own tooltip shows roles and classes only." },
 	{ key = "showRanges", onProfile = true, text = "Show ranges", tooltip = "Show the Ranges section (Dungeons: leader rating; Raids: members, most tanks and healers). Off: the section is hidden and those ranges don't filter; your values come back when you turn it on again." },
 }
 
@@ -237,13 +238,13 @@ local function SetupSettingsMenu(dropdown, root)
 			end)
 		end
 	end
-	-- Dark appearance: applied after a reload, so a change asks to reload (Cancel keeps the choice
-	-- for the next reload or login).
+	-- Dark appearance: account-wide, applied after a reload, so a change asks to reload (Cancel
+	-- keeps the choice for the next reload or login).
 	local dark = root:CreateCheckbox(L["Dark appearance"], function()
-		return ns.Settings.Profile().appearance == "dark"
+		return ns.Settings.Global().appearance == "dark"
 	end, function()
-		local profile = ns.Settings.Profile()
-		profile.appearance = profile.appearance == "dark" and "stock" or "dark"
+		local global = ns.Settings.Global()
+		global.appearance = global.appearance == "dark" and "stock" or "dark"
 		Changed()
 		if ns.Skin.NeedsReload() then
 			ns.ReloadDialog.Show()
@@ -255,7 +256,7 @@ local function SetupSettingsMenu(dropdown, root)
 	if dark and dark.SetTooltip then
 		dark:SetTooltip(function(tooltip)
 			GameTooltip_SetTitle(tooltip, L["Dark appearance"])
-			GameTooltip_AddNormalLine(tooltip, L["Draw LFG Spyglass's own panel and controls dark instead of Blizzard's look. Blizzard's Group Finder and the group rows are unchanged. Takes effect after a reload."])
+			GameTooltip_AddNormalLine(tooltip, L["Draw LFG Spyglass's own panel and controls dark instead of Blizzard's look, on every character. Blizzard's Group Finder and the group rows are unchanged. Takes effect after a reload."])
 		end)
 	end
 	-- Last option: Reset all, centered

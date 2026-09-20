@@ -12,6 +12,7 @@ local _, ns = ...
 
 local ResultList = ns.NewModule("ResultList")
 
+local NAME_COLOR = "|cffffffff" -- member names in the tooltip
 local ROW_TEMPLATE = "LFGListSearchEntryTemplate"
 
 -- `list` is the addon container. Blizzard's row update reads `list.selectedResult`
@@ -161,6 +162,76 @@ local function RowOnDoubleClick(row)
 	OpenSignUp(row.resultID)
 end
 
+-- Blizzard's tooltip lists each member as a role icon plus class and spec, without a name. When the
+-- client does send names (it doesn't always), LFG Spyglass writes each one in white at the end of
+-- that member's line. Members come in index order in both Blizzard's list and ours. If the tooltip has no member lines (raid-sized groups show counts
+-- instead), the names go in a "Members" section of our own. Nothing is read or written unless it is
+-- a readable string.
+local function MemberNameText(resultID, index)
+	local member = ns.SafeRead.GetPlayerInfo(resultID, index)
+	local name = member and ns.SafeRead.Field(member, "name")
+	if type(name) ~= "string" or name == "" then
+		return nil
+	end
+	return NAME_COLOR .. name .. "|r" -- plain white, whatever color the rest of the line uses
+end
+
+-- The tooltip line that starts Blizzard's member list, or nil when it doesn't have one.
+local function MembersLineIndex()
+	if not (MEMBERS_COLON and GameTooltip.NumLines) then
+		return nil
+	end
+	for i = 1, GameTooltip:NumLines() do
+		local line = _G["GameTooltipTextLeft" .. i]
+		local text = line and line.GetText and line:GetText()
+		if ns.SafeRead.IsReadable(text) and text == MEMBERS_COLON then
+			return i
+		end
+	end
+	return nil
+end
+
+-- Dungeons only: a five-man tooltip has one line per member, and the names fit. Raid tooltips list
+-- member counts for up to 30 people, so they stay as Blizzard draws them.
+local function AddMemberNames(resultID)
+	if ns.Settings.Profile().rowInfo.memberNames == false then
+		return
+	end
+	if ns.Categories.GetActive() ~= ns.Categories.DUNGEONS then
+		return
+	end
+	local info = ns.SafeRead.GetResultInfo(resultID)
+	local count = info and ns.SafeRead.Field(info, "numMembers")
+	if type(count) ~= "number" or count < 1 or count > 40 then
+		return
+	end
+	local membersLine = MembersLineIndex()
+	if membersLine then
+		-- Blizzard drew one line per member, in index order: put the name at the end of each.
+		for index = 1, count do
+			local line = _G["GameTooltipTextLeft" .. (membersLine + index)]
+			local existing = line and line.GetText and line:GetText()
+			local name = MemberNameText(resultID, index)
+			if name and ns.SafeRead.IsReadable(existing) and type(existing) == "string" then
+				line:SetText(existing .. "  " .. name)
+			end
+		end
+		return
+	end
+	local lines = {}
+	for index = 1, count do
+		lines[#lines + 1] = MemberNameText(resultID, index)
+	end
+	if #lines == 0 then
+		return -- the client sent no names: Blizzard's own tooltip is all there is
+	end
+	GameTooltip:AddLine(" ")
+	GameTooltip:AddLine(MEMBERS_COLON or L["Members"], 1, 1, 1)
+	for _, line in ipairs(lines) do
+		GameTooltip:AddLine(line)
+	end
+end
+
 local function RowOnEnter(row)
 	if type(row.Highlight) == "table" then
 		row.Highlight:Show()
@@ -172,6 +243,10 @@ local function RowOnEnter(row)
 	if setTooltip and row.resultID then
 		GameTooltip:SetOwner(row, "ANCHOR_RIGHT", 25, 0)
 		pcall(setTooltip, GameTooltip, row.resultID)
+		local ok, err = pcall(AddMemberNames, row.resultID)
+		if not ok then
+			ns.DebugOnce("row-names-" .. tostring(err), "Member names failed: %s", err)
+		end
 		GameTooltip:Show()
 	end
 end
@@ -564,6 +639,46 @@ local function UpdateMemberStrip(row, snap, settings)
 	strip:Show()
 end
 
+-- Blizzard remembers a delisting as a decline for the whole session, so its row update paints a
+-- relisted group as "Declined" (red name, no group data, no selection). Nobody declined the player
+-- and the group can be applied to again, so LFG Spyglass's own rows are put back to the normal
+-- look. Only rows the addon created are touched; Blizzard's own list is never changed.
+local function ClearStaleDecline(row, snap)
+	if not (snap and snap.wasDelisted and not snap.declined and not snap.isDelisted and snap.pendingStatus == nil) then
+		return
+	end
+	row.isApplication = false
+	for _, key in ipairs({ "PendingLabel", "ExpirationTime", "CancelButton", "Spinner" }) do
+		local part = row[key]
+		if type(part) == "table" and part.Hide then
+			part:Hide()
+		end
+	end
+	for _, key in ipairs({ "ResultBG", "DataDisplay" }) do
+		local part = row[key]
+		if type(part) == "table" and part.Show then
+			part:Show()
+		end
+	end
+	if type(row.Name) == "table" and row.Name.SetTextColor and NORMAL_FONT_COLOR then
+		row.Name:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+	end
+	if type(row.ActivityName) == "table" and row.ActivityName.SetTextColor and GRAY_FONT_COLOR then
+		row.ActivityName:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+	end
+	-- Blizzard forced the selection off for an "application" row: give it the normal highlight.
+	local selected = selectedResultID == row.resultID
+	row.isSelected = selected
+	if type(row.BackgroundTexture) == "table" then
+		if selected then
+			row.BackgroundTexture:SetAtlas("groupfinder-highlightbar-yellow")
+			row.BackgroundTexture:Show()
+		else
+			row.BackgroundTexture:Hide()
+		end
+	end
+end
+
 local function InitRow(row, elementData)
 	if not initializedRows[row] then
 		initializedRows[row] = true
@@ -582,11 +697,15 @@ local function InitRow(row, elementData)
 			ns.DebugOnce("row-update-" .. tostring(err), "Row update failed: %s", err)
 		end
 	end
+	local snap = currentRun and currentRun.snapshots and currentRun.snapshots[elementData.resultID]
+	local okStale, staleErr = pcall(ClearStaleDecline, row, snap)
+	if not okStale then
+		ns.DebugOnce("row-stale-" .. tostring(staleErr), "Row decline cleanup failed: %s", staleErr)
+	end
 	local ok, err = pcall(UpdateRowInfo, row, elementData.resultID)
 	if not ok then
 		ns.DebugOnce("row-info-" .. tostring(err), "Row info failed: %s", err)
 	end
-	local snap = currentRun and currentRun.snapshots and currentRun.snapshots[elementData.resultID]
 	local okStrip, stripErr = pcall(UpdateMemberStrip, row, snap, ns.Settings.Profile().rowInfo or {})
 	if not okStrip then
 		ns.DebugOnce("row-members-" .. tostring(stripErr), "Member icons failed: %s", stripErr)
