@@ -25,6 +25,7 @@ local FRAMES = {
 	signUpButton = Sub(SP, "SignUpButton"),
 	filterButton = Sub(SP, "FilterButton"), -- anchor for the LFG Spyglass toggle button
 	resultsInset = Sub(SP, "ResultsInset"),
+	searchAutoComplete = Sub(SP, "AutoCompleteFrame"), -- search box suggestions: drop below them
 	entryCreation = { "LFGListFrame", "EntryCreation" },
 	applicationViewer = { "LFGListFrame", "ApplicationViewer" },
 	applicationDialog = { "LFGListApplicationDialog" },

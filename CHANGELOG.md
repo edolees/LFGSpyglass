@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.1 (2026-09-20)
+
+### Changed
+- Dungeons: the group tooltip shows each member's **name and realm**, in their class color, in place
+  of their class and spec. The role icons stay.
+
+### Fixed
+- Raids: the left column of boss checkboxes is no longer cut off at the edge of the boss list.
+- The search box's suggestions are no longer hidden behind LFG Spyglass's list: while they are open,
+  the list drops below them and goes back afterwards.
+
 ## 1.3.0 (2026-09-20)
 
 ### Added

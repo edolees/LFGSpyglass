@@ -167,7 +167,7 @@ local SETTINGS_OPTIONS = {
 	{ key = "specs", text = "Show spec role", tooltip = "Show each member's spec icon with a role badge instead of Blizzard's class icons. Off: Blizzard's default icons." },
 	{ key = "leader", text = "Show who's leader", tooltip = "Show a crown on the group leader's icon." },
 	{ key = "leaderProgress", text = "Show leader progress", tooltip = "Show the raid leader's progress in that raid (and their main's, if better) from Raider.IO. Needs Raider.IO." },
-	{ key = "memberNames", text = "Show member names", tooltip = "Dungeons: add each member's name to the group tooltip when you hover a group, if the game sends it. Blizzard's own tooltip shows roles and classes only." },
+	{ key = "memberNames", text = "Show member names", tooltip = "Dungeons: show each member's name and realm in the group tooltip, in their class color, instead of their class and spec. The role icons stay. Needs the game to send the name." },
 	{ key = "showRanges", onProfile = true, text = "Show ranges", tooltip = "Show the Ranges section (Dungeons: leader rating; Raids: members, most tanks and healers). Off: the section is hidden and those ranges don't filter; your values come back when you turn it on again." },
 }
 
@@ -917,7 +917,9 @@ local function LayoutBosses(settings, y, bossRows)
 		check:SetChecked(state == "alive")
 		check.tlfgCross:SetShown(state == "dead")
 		check:ClearAllPoints()
-		check:SetPoint("TOPLEFT", ui.bossArea, "TOPLEFT", -2 + ((index - 1) % BOSS_COLUMNS) * NEEDS_COLUMN_WIDTH,
+		-- The boss area clips its children so the list can scroll: the first column starts at its very
+		-- edge, never outside it, or the checkbox would be sliced.
+		check:SetPoint("TOPLEFT", ui.bossArea, "TOPLEFT", ((index - 1) % BOSS_COLUMNS) * NEEDS_COLUMN_WIDTH,
 			ui.bossOffset - math.floor((index - 1) / BOSS_COLUMNS) * BOSS_ROW_STEP)
 		check:Show()
 	end

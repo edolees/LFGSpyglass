@@ -163,17 +163,43 @@ local function RowOnDoubleClick(row)
 end
 
 -- Blizzard's tooltip lists each member as a role icon plus class and spec, without a name. When the
--- client does send names (it doesn't always), LFG Spyglass writes each one in white at the end of
--- that member's line. Members come in index order in both Blizzard's list and ours. If the tooltip has no member lines (raid-sized groups show counts
+-- client does send names (it doesn't always), LFG Spyglass puts the name in place of the class and
+-- spec, in the member's class color and with their realm, keeping the role icon. The game only
+-- includes a realm for players from another one, so the player's own realm is filled in for the
+-- rest. Members come in index order in both Blizzard's list and ours. If the tooltip has no member lines (raid-sized groups show counts
 -- instead), the names go in a "Members" section of our own. Nothing is read or written unless it is
 -- a readable string.
+local ownRealm -- read once
+
+local function OwnRealm()
+	if ownRealm == nil then
+		local ok, realm = pcall(GetNormalizedRealmName)
+		if not (ok and type(realm) == "string" and realm ~= "") then
+			ok, realm = pcall(GetRealmName)
+		end
+		ownRealm = (ok and type(realm) == "string" and realm:gsub("%s+", "")) or false
+	end
+	return ownRealm or nil
+end
+
 local function MemberNameText(resultID, index)
 	local member = ns.SafeRead.GetPlayerInfo(resultID, index)
 	local name = member and ns.SafeRead.Field(member, "name")
 	if type(name) ~= "string" or name == "" then
 		return nil
 	end
-	return NAME_COLOR .. name .. "|r" -- plain white, whatever color the rest of the line uses
+	if not name:find("-", 1, true) then
+		local realm = OwnRealm()
+		if realm then
+			name = name .. "-" .. realm
+		end
+	end
+	local classFile = ns.SafeRead.Field(member, "classFilename")
+	local color = type(classFile) == "string" and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+	if color and color.WrapTextInColorCode then
+		return color:WrapTextInColorCode(name)
+	end
+	return NAME_COLOR .. name .. "|r"
 end
 
 -- The tooltip line that starts Blizzard's member list, or nil when it doesn't have one.
@@ -207,13 +233,15 @@ local function AddMemberNames(resultID)
 	end
 	local membersLine = MembersLineIndex()
 	if membersLine then
-		-- Blizzard drew one line per member, in index order: put the name at the end of each.
+		-- Blizzard drew one line per member, in index order: the class and spec make way for the name,
+		-- and the line keeps the role icon it starts with.
 		for index = 1, count do
 			local line = _G["GameTooltipTextLeft" .. (membersLine + index)]
 			local existing = line and line.GetText and line:GetText()
 			local name = MemberNameText(resultID, index)
 			if name and ns.SafeRead.IsReadable(existing) and type(existing) == "string" then
-				line:SetText(existing .. "  " .. name)
+				local roleIcon = existing:match("^(|A.-|a%s*)") or ""
+				line:SetText(roleIcon .. name)
 			end
 		end
 		return
@@ -758,6 +786,28 @@ local function Build()
 	else
 		scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
 		scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
+	end
+
+	-- Blizzard's search box drops its suggestions (AutoCompleteFrame, frame level 20) over the results
+	-- area. The addon list sits well above that, so it would cover them: while the suggestions are up,
+	-- the list drops just below them, and goes back afterwards. Read-only hooks on Blizzard's frame.
+	local autoComplete = ns.FrameMap.Get("searchAutoComplete")
+	if autoComplete and autoComplete.HookScript then
+		local function SetListLevel(level)
+			list:SetFrameLevel(level)
+			if scrollBar then
+				scrollBar:SetFrameLevel(level + 5)
+			end
+		end
+		local normalLevel = list:GetFrameLevel()
+		autoComplete:HookScript("OnShow", function(self)
+			local below = self:GetFrameLevel() - 2
+			local floor = (blizzardScroll and blizzardScroll:GetFrameLevel() or 0) + 1
+			SetListLevel(math.max(math.min(below, normalLevel), floor))
+		end)
+		autoComplete:HookScript("OnHide", function()
+			SetListLevel(normalLevel)
+		end)
 	end
 
 	local view = CreateScrollBoxListLinearView()
