@@ -38,6 +38,8 @@ L["Hide groups that already have a Druid, Death Knight, Warlock or Paladin."] = 
 L["Blizzard order"] = true
 L["Sort"] = true
 L["Settings"] = true
+L["Dark appearance"] = true
+L["Draw LFG Spyglass's own panel and controls dark instead of Blizzard's look. Blizzard's Group Finder and the group rows are unchanged. Takes effect after a reload."] = true
 L["Reset all"] = true
 L["Clear this category's filters and sort, and sign up as your spec's role again."] = true
 L["Selected: only the selected dungeons are shown."] = true
@@ -97,6 +99,9 @@ L["Show the Ranges section (Dungeons: leader rating; Raids: members, most tanks 
 L["Normal"] = true
 L["Heroic"] = true
 L["Mythic"] = true
+
+-- UI/ReloadDialog.lua
+L["Reload the interface now to apply the new appearance?"] = true
 
 -- UI/ResultList.lua
 L["main"] = true

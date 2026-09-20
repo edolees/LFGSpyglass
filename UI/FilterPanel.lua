@@ -44,6 +44,7 @@ local RAID_BOX_WIDTH = 46
 local BOSS_COLUMNS = 2
 local BOSS_ROW_STEP = 20
 local MIN_BOSS_ROWS = 2 -- the boss list never shrinks below this; the rest is scrolled to
+local CHECK_TEXT_GAP = 3 -- px between a checkbox and its label
 local MARK_DEAD = [[Interface\RaidFrame\ReadyCheck-NotReady]] -- Blizzard's ready-check cross
 local FIT_CHECKS = { "party", "hasTank", "hasHealer", "battleRes", "bloodlust", "notDeclined", "hideClass" }
 local NEEDS_COLUMN_WIDTH = CONTENT_WIDTH / 2
@@ -95,6 +96,7 @@ local function NewCheckmark(parent, size)
 		check:SetTexture(CHECK_TEXTURE)
 	end
 	check:Hide()
+	ns.Skin.Apply("accent", check)
 	return check
 end
 
@@ -235,6 +237,27 @@ local function SetupSettingsMenu(dropdown, root)
 			end)
 		end
 	end
+	-- Dark appearance: applied after a reload, so a change asks to reload (Cancel keeps the choice
+	-- for the next reload or login).
+	local dark = root:CreateCheckbox(L["Dark appearance"], function()
+		return ns.Settings.Profile().appearance == "dark"
+	end, function()
+		local profile = ns.Settings.Profile()
+		profile.appearance = profile.appearance == "dark" and "stock" or "dark"
+		Changed()
+		if ns.Skin.NeedsReload() then
+			ns.ReloadDialog.Show()
+		else
+			ns.ReloadDialog.Hide()
+		end
+		return MenuResponse and MenuResponse.Close or nil
+	end)
+	if dark and dark.SetTooltip then
+		dark:SetTooltip(function(tooltip)
+			GameTooltip_SetTitle(tooltip, L["Dark appearance"])
+			GameTooltip_AddNormalLine(tooltip, L["Draw LFG Spyglass's own panel and controls dark instead of Blizzard's look. Blizzard's Group Finder and the group rows are unchanged. Takes effect after a reload."])
+		end)
+	end
 	-- Last option: Reset all, centered
 	root:CreateDivider()
 	local reset = root:CreateButton(L["Reset all"], ResetAll)
@@ -302,17 +325,19 @@ local function DungeonButton(index)
 	button:SetDisabledFontObject("GameFontDisableSmall")
 	button:SetText(" ")
 
-	-- Dungeon icon on the left; checkmark on the right, its space always reserved.
-	local icon = button:CreateTexture(nil, "ARTWORK")
+	-- Dungeon icon on the left; checkmark on the right, its space always reserved. Markers live on
+	-- the marker layer, so Match my UI's suite look can't hide them.
+	local markers = ns.Skin.MarkerLayer(button)
+	local icon = markers:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(22, 22)
 	icon:SetPoint("LEFT", button, "LEFT", 4, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	button.tlfgIcon = icon
 
-	button.tlfgCheck = NewCheckmark(button, 14)
+	button.tlfgCheck = NewCheckmark(markers, 14)
 	button.tlfgCheck:SetPoint("RIGHT", button, "RIGHT", -4, 0)
 	-- Excluded (right-click): Blizzard's ready-check cross where the checkmark goes.
-	button.tlfgCross = button:CreateTexture(nil, "OVERLAY")
+	button.tlfgCross = markers:CreateTexture(nil, "OVERLAY")
 	button.tlfgCross:SetSize(14, 14)
 	button.tlfgCross:SetPoint("RIGHT", button, "RIGHT", -4, 0)
 	button.tlfgCross:SetTexture(MARK_DEAD)
@@ -355,6 +380,7 @@ local function DungeonButton(index)
 		GameTooltip:Show()
 	end)
 	button:SetScript("OnLeave", GameTooltip_Hide)
+	ns.Skin.Apply("button", button)
 	ui.dungeonButtons[index] = button
 	return button
 end
@@ -376,8 +402,11 @@ local function BossCheck(index)
 		check.Text:SetWidth(NEEDS_COLUMN_WIDTH - 26)
 		check.Text:SetJustifyH("LEFT")
 		check.Text:SetWordWrap(false)
+		-- A little air between the box and its label (the box's edge sits right against it).
+		check.Text:ClearAllPoints()
+		check.Text:SetPoint("LEFT", check, "RIGHT", CHECK_TEXT_GAP, 0)
 	end
-	check.tlfgCross = check:CreateTexture(nil, "OVERLAY")
+	check.tlfgCross = ns.Skin.MarkerLayer(check):CreateTexture(nil, "OVERLAY")
 	check.tlfgCross:SetSize(14, 14)
 	check.tlfgCross:SetPoint("CENTER", check, "CENTER", 0, 0)
 	check.tlfgCross:SetTexture(MARK_DEAD)
@@ -418,6 +447,7 @@ local function BossCheck(index)
 		GameTooltip:Show()
 	end)
 	check:SetScript("OnLeave", GameTooltip_Hide)
+	ns.Skin.Apply("checkbox", check)
 	ui.bossChecks[index] = check
 	return check
 end
@@ -461,6 +491,7 @@ local function NewNumberBox(parent, key, placeholder, width, offValue, maxValue)
 	end)
 	box.tlfgKey = key
 	box.tlfgOff = offValue
+	ns.Skin.Apply("editbox", box)
 	box.tlfgUpdatePlaceholder = UpdatePlaceholder
 	return box
 end
@@ -485,8 +516,9 @@ local function NewToggleChip(parent, text, width)
 	chip:SetNormalFontObject("GameFontNormalSmall")
 	chip:SetHighlightFontObject("GameFontHighlightSmall")
 	chip:SetText(text)
-	chip.tlfgCheck = NewCheckmark(chip, 11)
+	chip.tlfgCheck = NewCheckmark(ns.Skin.MarkerLayer(chip), 11)
 	chip.tlfgCheck:SetPoint("RIGHT", chip, "RIGHT", -3, 0)
+	ns.Skin.Apply("button", chip)
 	return chip
 end
 
@@ -502,12 +534,13 @@ local function NewRoleButton(parent, role)
 	button:SetMotionScriptsWhileDisabled(true) -- locked roles still explain themselves
 	button.tlfgRole = role
 
-	button.tlfgRoleIcon = button:CreateTexture(nil, "ARTWORK")
+	local markers = ns.Skin.MarkerLayer(button)
+	button.tlfgRoleIcon = markers:CreateTexture(nil, "ARTWORK")
 	button.tlfgRoleIcon:SetSize(16, 16)
 	button.tlfgRoleIcon:SetPoint("LEFT", button, "LEFT", 4, 0)
-	button.tlfgCheck = NewCheckmark(button, 12)
+	button.tlfgCheck = NewCheckmark(markers, 12)
 	button.tlfgCheck:SetPoint("CENTER", button.tlfgRoleIcon, "BOTTOMRIGHT", 0, 2)
-	button.tlfgLock = button:CreateTexture(nil, "OVERLAY")
+	button.tlfgLock = markers:CreateTexture(nil, "OVERLAY")
 	button.tlfgLock:SetSize(9, 11)
 	button.tlfgLock:SetPoint("BOTTOMRIGHT", button.tlfgRoleIcon, "BOTTOMRIGHT", 3, -2)
 	button.tlfgLock:SetAtlas("groupfinder-icon-lock")
@@ -551,6 +584,7 @@ local function NewRoleButton(parent, role)
 		GameTooltip:Show()
 	end)
 	button:SetScript("OnLeave", GameTooltip_Hide)
+	ns.Skin.Apply("button", button)
 	return button
 end
 
@@ -582,6 +616,7 @@ local function Build()
 	if type(panel.SetTitle) == "function" then
 		panel:SetTitle("LFG Spyglass")
 	end
+	ns.Skin.Apply("panel", panel)
 
 	local content = CreateFrame("Frame", nil, panel)
 	content:SetPoint("TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -CONTENT_TOP)
@@ -783,7 +818,10 @@ local function Build()
 		button:SetScript("OnLeave", GameTooltip_Hide)
 		if type(button.Text) == "table" then
 			button.Text:SetFontObject("GameFontHighlightSmall")
+			button.Text:ClearAllPoints()
+			button.Text:SetPoint("LEFT", button, "RIGHT", CHECK_TEXT_GAP, 0)
 		end
+		ns.Skin.Apply("checkbox", button)
 		ui.fit[check] = button
 	end
 

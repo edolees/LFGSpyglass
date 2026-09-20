@@ -45,6 +45,14 @@ LFG Spyglass keeps Blizzard's own look. It only changes *which* groups you see a
   **Show ranges** off (hides the leader rating section; no leader rating filter while hidden).
 - Works with Raider.IO: its profile window docks to the right of the filter panel.
 
+## Dark appearance
+
+The gear menu has a **Dark appearance** option (off by default). Turn it on, accept the reload, and
+LFG Spyglass's own panel, buttons, chips, checkboxes, number boxes, the spyglass button and the Sign
+Up button are drawn dark and flat instead of Blizzard's look. Blizzard's Group Finder window and the
+group rows are never restyled. It needs no other add-on and ships no extra art: it's plain colours
+with Blizzard's own fonts and icons.
+
 ## Known limits
 
 - **No key level filter.** The key level only appears in the group title, and Blizzard does not

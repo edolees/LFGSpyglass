@@ -37,6 +37,8 @@ Filter\Snapshot.lua
 Filter\Engine.lua
 
 # UI
+UI\Skin.lua
+UI\ReloadDialog.lua
 UI\ResultList.lua
 UI\FilterPanel.lua
 UI\ToggleButton.lua

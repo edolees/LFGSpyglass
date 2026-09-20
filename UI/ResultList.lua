@@ -44,9 +44,10 @@ local function SetBlizzardListHidden(hidden)
 end
 
 -- Can this group be selected (and signed up for)? Blizzard's own rule, plus one exception: a group
--- whose application expired ("timedout") may be selected again, as long as
--- nothing is pending, it isn't delisted and it didn't decline the player. The application still goes
--- through Blizzard's dialog and the player's click on its Sign Up button.
+-- whose application expired ("timedout") or that delisted while the player had applied
+-- ("declined_delisted", Blizzard remembers it per group even after a relist) may be selected again,
+-- as long as nothing is pending, it is listed right now and it didn't decline the player. The
+-- application still goes through Blizzard's dialog and the player's click on its Sign Up button.
 local function CanSelect(resultID)
 	local canSelect = ns.FrameMap.GetFunc("canSelectResult")
 	if not canSelect then
@@ -60,19 +61,22 @@ local function CanSelect(resultID)
 		return true
 	end
 	local appStatus, pendingStatus = ns.SafeRead.GetApplicationInfo(resultID)
-	if appStatus ~= "timedout" or pendingStatus ~= nil then
+	if pendingStatus ~= nil then
 		return false
 	end
 	local info = ns.SafeRead.GetResultInfo(resultID)
 	if not info or ns.SafeRead.Field(info, "isDelisted") ~= false then
-		return false
+		return false -- gone from the list: nothing to apply to
 	end
 	local partyGUID = ns.SafeRead.Field(info, "partyGUID")
 	local declines = ns.SafeRead.Field(ns.FrameMap.Get("lfgList"), "declines")
-	if partyGUID and declines and ns.SafeRead.Field(declines, partyGUID) then
-		return false
+	local remembered = partyGUID and declines and ns.SafeRead.Field(declines, partyGUID) or nil
+	if remembered == "declined" or remembered == "declined_full" then
+		return false -- the group really declined the player
 	end
-	return true
+	local retryable = appStatus == "timedout" or appStatus == "declined_delisted"
+		or remembered == "declined_delisted"
+	return retryable == true
 end
 
 -- Why the addon Sign Up control is disabled (nil = allowed). Mirrors Blizzard's own checks,
@@ -640,6 +644,8 @@ local function Build()
 	local view = CreateScrollBoxListLinearView()
 	view:SetElementInitializer(ROW_TEMPLATE, InitRow)
 	ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+	-- Match my UI: our scroll bar sits over Blizzard's, which the suite restyles. Rows stay stock.
+	ns.Skin.Apply("scrollbar", scrollBar)
 
 	-- When filters hide every group, the list shows Blizzard's own "no groups found" text, styled and
 	-- placed like the stock ScrollBox.NoResultsFound. (The filter panel's status line still says the
@@ -674,6 +680,7 @@ local function Build()
 		end
 	end)
 	signUpButton:SetScript("OnLeave", GameTooltip_Hide)
+	ns.Skin.Apply("button", signUpButton) -- over Blizzard's Sign Up, which the suite restyles
 
 	return true
 end

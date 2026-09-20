@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 (2026-09-20)
+
+### Added
+- **Dark appearance** (gear menu, off by default): LFG Spyglass's own panel, buttons, chips,
+  checkboxes, number boxes, the spyglass button and the Sign Up button can be drawn dark and flat
+  instead of Blizzard's look. Turning it on or off asks you to reload. Blizzard's Group Finder
+  window and the group rows are never restyled, no other add-on is needed, and no extra art ships
+  with it.
+
+### Fixed
+- Groups that **delisted while you had applied** are no longer treated as declines: they stay
+  visible with **Not Declined** on, and you can apply again once they list again (Blizzard blocks
+  that until a reload). Groups that really declined you are still hidden and blocked.
+
+### Changed
+- A little more space between a checkbox and its label.
+
 ## 1.1.0 (2026-09-18)
 
 ### Raids

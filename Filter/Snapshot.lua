@@ -10,7 +10,11 @@ local Field = SafeRead.Field
 local ROLE_BY_ENUM -- Enum.LFGRole -> "TANK" | "HEALER" | "DAMAGER"
 local ROLE_KEYS = { TANK = true, HEALER = true, DAMAGER = true }
 local MINE = { applied = true, invited = true, inviteaccepted = true }
-local DECLINED = { declined = true, declined_full = true, declined_delisted = true }
+-- A real decline by the group. Blizzard also counts "declined_delisted" (the group delisted while
+-- the player had applied) as a decline; LFG Spyglass doesn't: nobody declined, the listing just went
+-- away, and the group may list again.
+local DECLINED = { declined = true, declined_full = true }
+local WAS_DELISTED = { declined_delisted = true }
 
 local playerContext
 
@@ -204,12 +208,17 @@ function Snapshot.Build(resultID, blizzardIndex)
 	end
 	snap.readable = true
 	snap.declined = DECLINED[appStatus] == true
+	snap.wasDelisted = WAS_DELISTED[appStatus] == true
 	local partyGUID = Field(info, "partyGUID")
 	if partyGUID and not snap.declined then
-		-- Blizzard remembers declines per group (LFGListFrame.declines) even after a relist.
+		-- Blizzard remembers the last application status per group (LFGListFrame.declines) even after
+		-- a relist: a real decline still counts, a delisting doesn't.
 		local declines = Field(ns.FrameMap.Get("lfgList"), "declines")
-		if declines and Field(declines, partyGUID) then
+		local remembered = declines and Field(declines, partyGUID) or nil
+		if DECLINED[remembered] then
 			snap.declined = true
+		elseif WAS_DELISTED[remembered] then
+			snap.wasDelisted = true
 		end
 	end
 

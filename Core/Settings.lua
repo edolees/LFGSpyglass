@@ -54,6 +54,9 @@ local defaults = {
 		rowInfo = { leaderRating = true, region = true, specs = false, leader = false, leaderProgress = true },
 		-- Ranges section shown (gear menu); the rating range doesn't filter while it's hidden
 		showRanges = true,
+		-- Appearance of LFG Spyglass's own frames (gear menu): "stock" or "dark". Opt-in; read once
+		-- at load, so a change needs a reload.
+		appearance = "stock",
 		notices = { otherFilterAddonShown = false },
 		categories = {
 			[DUNGEONS] = DungeonDefaults(), -- Dungeons
@@ -97,6 +100,11 @@ end
 -- The dungeon buttons are always abbreviated now: drop the old option.
 local function DropAbbreviationOption(profile)
 	profile.dungeonAbbreviations = nil
+end
+
+-- "Match my UI" (UI-suite matching) became the appearance choice: drop the old key.
+local function DropMatchUI(profile)
+	profile.matchUI = nil
 end
 
 -- "Hide Ranges" (earlier option) became "Show Ranges": carry a saved choice over once.
@@ -147,12 +155,14 @@ function Settings:OnInitialize()
 	MigrateHideRanges(self.db.profile)
 	DropRaidSelection(self.db.profile)
 	DropAbbreviationOption(self.db.profile)
+	DropMatchUI(self.db.profile)
 	local function OnProfileChanged()
 		MigrateProfile(self.db.profile)
 		NormalizeSorts(self.db.profile)
 		MigrateHideRanges(self.db.profile)
 		DropRaidSelection(self.db.profile)
 		DropAbbreviationOption(self.db.profile)
+		DropMatchUI(self.db.profile)
 		self:SendMessage(ns.MSG.SettingsChanged)
 	end
 	self.db.RegisterCallback(self, "OnProfileChanged", OnProfileChanged)

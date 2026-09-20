@@ -55,7 +55,8 @@ local function Build()
 	button:SetDisabledTexture("Interface\\Buttons\\UI-SquareButton-Disabled")
 	button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
 
-	button.Icon = button:CreateTexture(nil, "ARTWORK", nil, 5)
+	-- The icon lives on the marker layer, so Match my UI's suite look can't hide it.
+	button.Icon = ns.Skin.MarkerLayer(button):CreateTexture(nil, "ARTWORK", nil, 5)
 	button.Icon:SetSize(14, 14)
 	button.Icon:SetPoint("CENTER", button, "CENTER", -1, 0)
 	button.Icon:SetTexture(ICON)
@@ -78,6 +79,7 @@ local function Build()
 	end)
 	button:SetScript("OnEnter", ShowTooltip)
 	button:SetScript("OnLeave", GameTooltip_Hide)
+	ns.Skin.Apply("button", button)
 	return true
 end
 
