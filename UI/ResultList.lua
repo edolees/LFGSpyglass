@@ -147,8 +147,20 @@ local function SetSelected(resultID)
 end
 
 local function RowOnClick(row, button)
+	if button == "RightButton" then
+		-- Blizzard's own row menu (whisper the leader, report the group or its advertisement), opened
+		-- on the player's click, exactly as in the stock list. Every entry is Blizzard's.
+		local contextMenu = ns.FrameMap.GetFunc("searchEntryContextMenu")
+		if contextMenu then
+			local ok, err = pcall(contextMenu, row)
+			if not ok then
+				ns.DebugOnce("row-menu-" .. tostring(err), "Row menu failed: %s", err)
+			end
+		end
+		return
+	end
 	if button ~= "LeftButton" then
-		return -- no context menu: it offers protected actions (report group)
+		return
 	end
 	if CanSelect(row.resultID) and selectedResultID ~= row.resultID then
 		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)

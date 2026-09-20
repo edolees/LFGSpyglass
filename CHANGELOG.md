@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2 (2026-09-20)
+
+### Fixed
+- **Right-clicking a group** in LFG Spyglass's list opens Blizzard's own menu again (whisper the
+  leader, report the group or its advertisement), the same as in the stock list.
+
 ## 1.3.1 (2026-09-20)
 
 ### Changed

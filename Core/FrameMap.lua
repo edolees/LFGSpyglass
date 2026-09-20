@@ -43,6 +43,7 @@ local FUNCS = {
 	-- called (display / dialog only)
 	searchEntryUpdate = "LFGListSearchEntry_Update", -- draws addon-owned template rows
 	setTooltip = "LFGListUtil_SetSearchEntryTooltip",
+	searchEntryContextMenu = "LFGListSearchEntry_CreateContextMenu", -- right-click menu on a row (Blizzard's own: whisper leader, report)
 	dialogShow = "LFGListApplicationDialog_Show",
 	dialogUpdateRoles = "LFGListApplicationDialog_UpdateRoles", -- post-hooked: pre-tick sign-up roles
 	dialogUpdateValidState = "LFGListApplicationDialog_UpdateValidState",
