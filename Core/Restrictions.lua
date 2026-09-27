@@ -4,18 +4,21 @@ local _, ns = ...
 
 local Restrictions = ns.NewModule("Restrictions")
 
+-- Restrictions that pause filtering: the player is busy in content Blizzard restricts add-ons for.
 -- Enum.AddOnRestrictionType member name (lowercased) -> reason key used by the UI.
-local REASONS = {
+local PAUSING = {
 	combat = "combat",
 	encounter = "encounter",
 	challengemode = "challengeMode",
 	pvpmatch = "pvpMatch",
-	map = "map",
-	chat = "chat",
 }
+-- Restrictions that cover a whole map (raid and dungeon instances) or chat. The Group Finder still
+-- works there, so filtering carries on with whatever SafeRead can read; the engine pauses by itself
+-- when the result data isn't readable (constitution 3.9.0).
+local NON_PAUSING = { map = true, chat = true }
 
 local function ReasonFor(enumName)
-	return REASONS[string.lower(tostring(enumName))] or "restricted"
+	return PAUSING[string.lower(tostring(enumName))] or "restricted"
 end
 
 -- Returns active (boolean), reason (string or nil). API errors count as restricted.
@@ -27,12 +30,14 @@ function Restrictions:IsActive()
 	local types = Enum and Enum.AddOnRestrictionType
 	if api and api.IsAddOnRestrictionActive and types then
 		for name, value in pairs(types) do
-			local ok, active = pcall(api.IsAddOnRestrictionActive, value)
-			if not ok then
-				return true, "restricted"
-			end
-			if active then
-				return true, ReasonFor(name)
+			if not NON_PAUSING[string.lower(tostring(name))] then
+				local ok, active = pcall(api.IsAddOnRestrictionActive, value)
+				if not ok then
+					return true, "restricted"
+				end
+				if active then
+					return true, ReasonFor(name)
+				end
 			end
 		end
 	end

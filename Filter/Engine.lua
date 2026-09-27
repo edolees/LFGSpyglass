@@ -84,12 +84,21 @@ local function Pass(run, ids, settings, categoryID)
 	end
 
 	local visible = {}
+	local readable = 0
 	for i = 1, #ids do
 		local snap = ns.Snapshot.Build(ids[i], i)
 		run.snapshots[ids[i]] = snap
+		if snap.readable then
+			readable = readable + 1
+		end
 		if ns.Match.IsVisible(snap, effective, player, classUtility) then
 			visible[#visible + 1] = snap
 		end
+	end
+	if readable == 0 then
+		-- Nothing could be read (a restriction hides the data): Blizzard's own list, not an empty one.
+		run.state, run.pauseReason = "paused", "restricted"
+		return
 	end
 	-- Raids: the leader's progress from Raider.IO, read after filtering (never
 	-- used to filter) for visible groups only, for the row info and the leader progress sort.
@@ -182,4 +191,5 @@ function Engine:OnEnable()
 	self:RegisterMessage(ns.MSG.ActiveCategoryChanged, "RequestRun")
 	self:RegisterMessage(ns.MSG.ActivePanelChanged, "RequestRun")
 	self:RegisterMessage(ns.MSG.SettingsChanged, "RequestRun")
+	self:RegisterMessage(ns.MSG.BossListUpdated, "RequestRun")
 end

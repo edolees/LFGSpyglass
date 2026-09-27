@@ -13,6 +13,7 @@ ns.MSG = {
 	ActivePanelChanged = "LFGSpyglass_ActivePanelChanged", -- (panelKey)
 	SettingsChanged = "LFGSpyglass_SettingsChanged", -- ()
 	RunComplete = "LFGSpyglass_RunComplete", -- (run)
+	BossListUpdated = "LFGSpyglass_BossListUpdated", -- () a raid's boss list arrived after a retry
 }
 
 -- Module registry: every module is an AceAddon module with AceEvent embedded,

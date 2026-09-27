@@ -44,40 +44,52 @@ local function SetBlizzardListHidden(hidden)
 	end
 end
 
--- Can this group be selected (and signed up for)? Blizzard's own rule, plus one exception: a group
--- whose application expired ("timedout") or that delisted while the player had applied
--- ("declined_delisted", Blizzard remembers it per group even after a relist) may be selected again,
--- as long as nothing is pending, it is listed right now and it didn't decline the player. The
--- application still goes through Blizzard's dialog and the player's click on its Sign Up button.
-local function CanSelect(resultID)
-	local canSelect = ns.FrameMap.GetFunc("canSelectResult")
-	if not canSelect then
-		return true
-	end
-	local ok, allowed = pcall(canSelect, resultID)
-	if not ok then
-		return false
-	end
-	if allowed then
-		return true
-	end
+-- Application state of one group, all through the secret-safe reader: what the client says now, and
+-- the status Blizzard remembers for that party (it keeps a decline or a delisting for the whole
+-- session, even after the group lists again).
+local LIVE_APPLICATION = { applied = true, invited = true, inviteaccepted = true }
+local REAL_DECLINE = { declined = true, declined_full = true }
+
+local function ApplicationState(resultID)
 	local appStatus, pendingStatus = ns.SafeRead.GetApplicationInfo(resultID)
-	if pendingStatus ~= nil then
-		return false
-	end
 	local info = ns.SafeRead.GetResultInfo(resultID)
-	if not info or ns.SafeRead.Field(info, "isDelisted") ~= false then
-		return false -- gone from the list: nothing to apply to
-	end
-	local partyGUID = ns.SafeRead.Field(info, "partyGUID")
+	local partyGUID = info and ns.SafeRead.Field(info, "partyGUID")
 	local declines = ns.SafeRead.Field(ns.FrameMap.Get("lfgList"), "declines")
 	local remembered = partyGUID and declines and ns.SafeRead.Field(declines, partyGUID) or nil
-	if remembered == "declined" or remembered == "declined_full" then
-		return false -- the group really declined the player
+	return {
+		appStatus = appStatus,
+		pendingStatus = pendingStatus,
+		remembered = remembered,
+		listed = info ~= nil and ns.SafeRead.Field(info, "isDelisted") ~= true,
+		readable = info ~= nil,
+	}
+end
+
+-- Why this group can't be signed up for, as text for the player, or nil when it can. Blizzard's own
+-- rule says no to anything it has ever seen an application for, until the player reloads; LFG
+-- Spyglass only says no when there is a reason right now: the group is gone, an application is
+-- still live (cancel it first), or the group declined the player. A finished application (expired,
+-- cancelled, or the group delisted and came back) can simply be sent again, through Blizzard's own
+-- dialog and the player's click on its Sign Up button.
+local function SelectBlockReason(resultID)
+	local state = ApplicationState(resultID)
+	if not state.readable then
+		return LFG_LIST_SELECT_A_SEARCH_RESULT
 	end
-	local retryable = appStatus == "timedout" or appStatus == "declined_delisted"
-		or remembered == "declined_delisted"
-	return retryable == true
+	if not state.listed then
+		return LFG_LIST_APP_DELISTED or LFG_LIST_SELECT_A_SEARCH_RESULT
+	end
+	if state.pendingStatus ~= nil or LIVE_APPLICATION[state.appStatus] then
+		return LFG_LIST_PENDING or LFG_LIST_SELECT_A_SEARCH_RESULT
+	end
+	if REAL_DECLINE[state.appStatus] or REAL_DECLINE[state.remembered] then
+		return LFG_LIST_APP_DECLINED
+	end
+	return nil
+end
+
+local function CanSelect(resultID)
+	return resultID ~= nil and SelectBlockReason(resultID) == nil
 end
 
 -- Why the addon Sign Up control is disabled (nil = allowed). Mirrors Blizzard's own checks,
@@ -89,8 +101,9 @@ local function SignUpBlockReason(resultID)
 	if ns.Restrictions:IsActive() then
 		return LFG_LIST_SELECT_A_SEARCH_RESULT
 	end
-	if not CanSelect(resultID) then
-		return LFG_LIST_SELECT_A_SEARCH_RESULT
+	local selectReason = SelectBlockReason(resultID)
+	if selectReason then
+		return selectReason
 	end
 	local queueMessage = ns.FrameMap.GetFunc("activeQueueMessage")
 	if queueMessage then
@@ -128,14 +141,20 @@ end
 
 -- Open Blizzard's application dialog; the player's click on its Sign Up sends the application.
 local function OpenSignUp(resultID)
-	if SignUpBlockReason(resultID) then
+	local reason = SignUpBlockReason(resultID)
+	if reason then
+		-- Never silent: the player clicked Sign Up, so say why nothing happens.
+		ns.Print("%s", reason)
 		return
 	end
 	local dialog = ns.FrameMap.Get("applicationDialog")
 	local show = ns.FrameMap.GetFunc("dialogShow")
 	if dialog and show then
 		ns.Debug("Opening application dialog for result %s", resultID)
-		show(dialog, resultID)
+		local ok, err = pcall(show, dialog, resultID)
+		if not ok then
+			ns.DebugOnce("signup-" .. tostring(err), "Sign up dialog failed: %s", err)
+		end
 	end
 end
 
@@ -176,35 +195,16 @@ end
 
 -- Blizzard's tooltip lists each member as a role icon plus class and spec, without a name. When the
 -- client does send names (it doesn't always), LFG Spyglass puts the name in place of the class and
--- spec, in the member's class color and with their realm, keeping the role icon. The game only
--- includes a realm for players from another one, so the player's own realm is filled in for the
--- rest. Members come in index order in both Blizzard's list and ours. If the tooltip has no member lines (raid-sized groups show counts
+-- spec, in the member's class color, keeping the role icon. The name is shown exactly as the game
+-- sends it: a realm appears only when the game includes one, never guessed. Members come in index
+-- order in both Blizzard's list and ours. If the tooltip has no member lines (raid-sized groups show counts
 -- instead), the names go in a "Members" section of our own. Nothing is read or written unless it is
 -- a readable string.
-local ownRealm -- read once
-
-local function OwnRealm()
-	if ownRealm == nil then
-		local ok, realm = pcall(GetNormalizedRealmName)
-		if not (ok and type(realm) == "string" and realm ~= "") then
-			ok, realm = pcall(GetRealmName)
-		end
-		ownRealm = (ok and type(realm) == "string" and realm:gsub("%s+", "")) or false
-	end
-	return ownRealm or nil
-end
-
 local function MemberNameText(resultID, index)
 	local member = ns.SafeRead.GetPlayerInfo(resultID, index)
 	local name = member and ns.SafeRead.Field(member, "name")
 	if type(name) ~= "string" or name == "" then
 		return nil
-	end
-	if not name:find("-", 1, true) then
-		local realm = OwnRealm()
-		if realm then
-			name = name .. "-" .. realm
-		end
 	end
 	local classFile = ns.SafeRead.Field(member, "classFilename")
 	local color = type(classFile) == "string" and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
@@ -683,7 +683,53 @@ end
 -- relisted group as "Declined" (red name, no group data, no selection). Nobody declined the player
 -- and the group can be applied to again, so LFG Spyglass's own rows are put back to the normal
 -- look. Only rows the addon created are touched; Blizzard's own list is never changed.
+-- A live application on a row Blizzard still paints as declined: Blizzard's label chain checks its
+-- remembered decline first, so it hides the countdown and Cancel even though the application is
+-- pending. Put the pending look back on LFG Spyglass's own row.
+local function RestorePendingLook(row, snap)
+	row.isApplication = true
+	if type(row.PendingLabel) == "table" then
+		if row.PendingLabel.SetText then
+			row.PendingLabel:SetText(LFG_LIST_PENDING or "")
+		end
+		if row.PendingLabel.SetTextColor and GREEN_FONT_COLOR then
+			row.PendingLabel:SetTextColor(GREEN_FONT_COLOR:GetRGB())
+		end
+		if row.PendingLabel.Show then
+			row.PendingLabel:Show()
+		end
+	end
+	if type(row.ExpirationTime) == "table" and row.ExpirationTime.Show then
+		row.ExpirationTime:Show()
+		if type(row.PendingLabel) == "table" and row.PendingLabel.SetPoint then
+			row.PendingLabel:SetPoint("RIGHT", row.ExpirationTime, "LEFT", -3, 0)
+		end
+	end
+	-- Blizzard hides Cancel while the application is still being sent ("applied" pending status).
+	if type(row.CancelButton) == "table" and row.CancelButton.SetShown then
+		row.CancelButton:SetShown(snap.pendingStatus ~= "applied")
+	end
+	if type(row.Spinner) == "table" and row.Spinner.SetShown then
+		row.Spinner:SetShown(snap.pendingStatus == "applied")
+	end
+	if type(row.DataDisplay) == "table" and row.DataDisplay.Hide then
+		row.DataDisplay:Hide()
+	end
+	if type(row.Name) == "table" and row.Name.SetTextColor and NORMAL_FONT_COLOR then
+		row.Name:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+	end
+end
+
+local LIVE_STATUS = { applied = true, invited = true, inviteaccepted = true }
+
 local function ClearStaleDecline(row, snap)
+	if snap and (snap.pendingStatus ~= nil or LIVE_STATUS[snap.appStatus]) then
+		-- An application is running right now: show it, whatever Blizzard remembers about the group.
+		if snap.wasDelisted or snap.declined then
+			RestorePendingLook(row, snap)
+		end
+		return
+	end
 	if not (snap and snap.wasDelisted and not snap.declined and not snap.isDelisted and snap.pendingStatus == nil) then
 		return
 	end

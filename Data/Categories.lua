@@ -116,6 +116,9 @@ local function JournalBosses(journalInstanceID)
 end
 
 local BOSS_RETRY_SECONDS = 5
+local MAX_BOSS_RETRIES = 12 -- about a minute: inside an instance the journal can take a while
+
+local ScheduleBossRetry -- defined below; EnsureBosses asks for a retry when it comes back empty
 
 -- Fill (or retry) a raid's boss list; an empty list is retried at most every few seconds.
 local function EnsureBosses(group)
@@ -134,6 +137,46 @@ local function EnsureBosses(group)
 	group.bossIDs = {}
 	for _, boss in ipairs(group.bosses) do
 		group.bossIDs[boss.id] = true
+	end
+	if #group.bosses == 0 then
+		-- Nothing came back (the Encounter Journal isn't ready yet, which happens inside an
+		-- instance): ask again on a timer, so the list fills itself without a /reload.
+		ScheduleBossRetry()
+	end
+end
+
+local retryScheduled, retryCount = false, 0
+
+ScheduleBossRetry = function()
+	if retryScheduled or retryCount >= MAX_BOSS_RETRIES or not (C_Timer and C_Timer.After) then
+		return
+	end
+	retryScheduled = true
+	C_Timer.After(BOSS_RETRY_SECONDS, function()
+		retryScheduled = false
+		retryCount = retryCount + 1
+		local filled = false
+		-- Only raids the panel has already asked for: nothing is read while the Group Finder is closed.
+		for _, raid in ipairs(seasonGroups[Categories.RAIDS] or {}) do
+			raid.bossRetryAt = nil -- the timer is the retry
+			EnsureBosses(raid)
+			filled = filled or (raid.bosses and #raid.bosses > 0)
+		end
+		if filled then
+			retryCount = 0
+			Categories:SendMessage(ns.MSG.BossListUpdated)
+		end
+	end)
+end
+
+-- A new world (zoning in or out of an instance) may make the journal answer again: start over.
+function Categories.ResetBossRetries()
+	retryCount = 0
+	for _, raid in ipairs(seasonGroups[Categories.RAIDS] or {}) do
+		if not (raid.bosses and #raid.bosses > 0) then
+			ScheduleBossRetry()
+			return
+		end
 	end
 end
 
@@ -271,6 +314,9 @@ local function PanelKeyFor(panel)
 end
 
 function Categories:OnEnable()
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+		Categories.ResetBossRetries()
+	end)
 	-- Pick up the category if the search panel was already set up before we loaded (e.g. /reload).
 	local initial = ns.SafeRead.Field(ns.FrameMap.Get("searchPanel"), "categoryID")
 	if type(initial) == "number" then

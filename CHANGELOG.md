@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.0 (2026-09-27)
+
+### Added
+- LFG Spyglass now works **inside raid and dungeon instances**. Blizzard applies an add-on
+  restriction to those maps, and the filter used to pause there; it only pauses for combat, boss
+  encounters, Mythic+ runs and PvP matches now. If the group data can't be read, Blizzard's own list
+  comes back, as before.
+
+### Fixed
+- **Signing up again** after a group delisted, your application expired or you cancelled now works:
+  Blizzard blocks those until you reload, LFG Spyglass doesn't. Groups that really declined you are
+  still blocked.
+- After re-applying, the row shows the application again (countdown and Cancel) instead of still
+  reading **Declined**.
+- The **Sign Up** button no longer does nothing in silence: when a group can't be applied to it is
+  greyed out with the reason in its tooltip, and clicking it says why.
+- The **raid boss list** fills itself when the Encounter Journal is slow to answer (inside a raid it
+  often is), instead of staying empty until you reload. Zoning starts the retries over.
+- Member names in the dungeon tooltip no longer show your own realm for everyone: the realm appears
+  only when the game sends one with the name (it usually doesn't).
+
 ## 1.3.2 (2026-09-20)
 
 ### Fixed

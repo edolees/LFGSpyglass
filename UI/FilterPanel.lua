@@ -167,7 +167,7 @@ local SETTINGS_OPTIONS = {
 	{ key = "specs", text = "Show spec role", tooltip = "Show each member's spec icon with a role badge instead of Blizzard's class icons. Off: Blizzard's default icons." },
 	{ key = "leader", text = "Show who's leader", tooltip = "Show a crown on the group leader's icon." },
 	{ key = "leaderProgress", text = "Show leader progress", tooltip = "Show the raid leader's progress in that raid (and their main's, if better) from Raider.IO. Needs Raider.IO." },
-	{ key = "memberNames", text = "Show member names", tooltip = "Dungeons: show each member's name and realm in the group tooltip, in their class color, instead of their class and spec. The role icons stay. Needs the game to send the name." },
+	{ key = "memberNames", text = "Show member names", tooltip = "Dungeons: show each member's name in the group tooltip, in their class color, instead of their class and spec. The role icons stay. Needs the game to send the name." },
 	{ key = "showRanges", onProfile = true, text = "Show ranges", tooltip = "Show the Ranges section (Dungeons: leader rating; Raids: members, most tanks and healers). Off: the section is hidden and those ranges don't filter; your values come back when you turn it on again." },
 }
 
@@ -1255,6 +1255,9 @@ function FilterPanel:OnEnable()
 		FilterPanel:RequestRefresh(true)
 	end)
 	self:RegisterMessage(ns.MSG.ActiveCategoryChanged, function()
+		FilterPanel:RequestRefresh(true)
+	end)
+	self:RegisterMessage(ns.MSG.BossListUpdated, function()
 		FilterPanel:RequestRefresh(true)
 	end)
 	panel:HookScript("OnShow", function()
